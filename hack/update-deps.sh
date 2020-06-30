@@ -54,4 +54,5 @@ go mod vendor
 
 find vendor/ \( -name OWNERS -o -name OWNERS_ALIASES -o -name BUILD -o -name BUILD.bazel \) -delete
 
-update_licenses third_party/VENDOR-LICENSE "./..."
+# TODO fix
+# update_licenses third_party/VENDOR-LICENSE "./..."
