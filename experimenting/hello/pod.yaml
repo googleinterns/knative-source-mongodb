@@ -15,9 +15,9 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: hello
+  name: helloo
 spec:
   containers:
-    - name: hello
+    - name: helloo
       image: ko://github.com/selim5/knative-source-mongodb/experimenting/hello
 
