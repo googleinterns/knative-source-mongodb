@@ -19,5 +19,4 @@ metadata:
 spec:
   containers:
     - name: helloo
-      image: ko://github.com/selim5/knative-source-mongodb/experimenting/hello
-
+      image: ko://github.com/googleinterns/knative-source-mongodb/experimental/hello
