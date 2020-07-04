@@ -23,5 +23,5 @@ import (
 
 func main() {
 	fmt.Println("Hello, playground")
-	time.Sleep(60 * time.Second)
+	time.Sleep(10 * time.Second)
 }
