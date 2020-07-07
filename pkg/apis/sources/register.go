@@ -17,5 +17,6 @@ limitations under the License.
 package sources
 
 const (
+	// GroupName used for our MongoDb source.
 	GroupName = "sources.google.com"
 )
