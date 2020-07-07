@@ -14,22 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package sources
 
-import (
-	"context"
-	"time"
-
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+const (
+	// GroupName used for our MongoDb source.
+	GroupName = "sources.google.com"
 )
-
-func main() {
-
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	// TODO use the client to listen for changes
-	_ := client
-	_ := err
-
-}
