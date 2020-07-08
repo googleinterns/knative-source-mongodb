@@ -3,9 +3,14 @@ module github.com/googleinterns/knative-source-mongodb
 go 1.14
 
 require (
+	github.com/cloudevents/sdk-go/v2 v2.1.0
+	github.com/google/go-cmp v0.4.0
 	go.mongodb.org/mongo-driver v1.1.2
-	knative.dev/pkg v0.0.0-20200603222317-b79e4a24ca50
-	knative.dev/test-infra v0.0.0-20200606045118-14ebc4a42974
+	k8s.io/api v0.17.6
+	k8s.io/apimachinery v0.17.6
+	knative.dev/eventing v0.16.0
+	knative.dev/pkg v0.0.0-20200702222342-ea4d6e985ba0
+	knative.dev/test-infra v0.0.0-20200630141629-15f40fe97047
 )
 
 replace (
