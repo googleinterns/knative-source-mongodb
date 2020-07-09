@@ -43,7 +43,7 @@ type MongoDbSource struct {
 }
 
 // GetGroupVersionKind returns the GroupVersionKind.
-func (s *MongoDbSource) GetGroupVersionKind() schema.GroupVersionKind {
+func (m *MongoDbSource) GetGroupVersionKind() schema.GroupVersionKind {
 	return SchemeGroupVersion.WithKind("MongoDbSource")
 }
 
@@ -122,6 +122,6 @@ type MongoDbSourceList struct {
 }
 
 // GetStatus retrieves the duck status for this resource. Implements the KRShaped interface.
-func (c *MongoDbSource) GetStatus() *duckv1.Status {
-	return &c.Status.Status
+func (m *MongoDbSource) GetStatus() *duckv1.Status {
+	return &m.Status.Status
 }
