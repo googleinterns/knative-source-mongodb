@@ -1,5 +1,8 @@
 **This is not an officially supported Google product.**
 
+[![GoDoc](https://godoc.org/github.com/googleinterns/knative-source-mongodb?status.svg)](https://godoc.org/github.com/googleinterns/knative-source-mongodb)
+[![Go Report Card](https://goreportcard.com/badge/googleinterns/knative-source-mongodb)](https://goreportcard.com/report/googleinterns/knative-source-mongodb)
+[![LICENSE](https://img.shields.io/github/license/googleinterns/knative-source-mongodb.svg)](https://github.com/googleinterns/knative-source-mongodb/blob/master/LICENSE)
 [![Build Status](https://travis-ci.org/googleinterns/knative-source-mongodb.svg?branch=master)](https://travis-ci.org/googleinterns/knative-source-mongodb)
 
 # Knative Source - MongoDB
