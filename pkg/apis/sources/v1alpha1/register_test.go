@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Knative Authors
+Copyright 2020 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import (
 )
 
 func TestRegisterHelpers(t *testing.T) {
-	if got, want := Kind("CouchDbSource"), "CouchDbSource.sources.knative.dev"; got.String() != want {
-		t.Errorf("Kind(CouchDbSource) = %v, want %v", got.String(), want)
+	if got, want := Kind("MongoDbSource"), "MongoDbSource.sources.knative.dev"; got.String() != want {
+		t.Errorf("Kind(MongoDbSource) = %v, want %v", got.String(), want)
 	}
 
-	if got, want := Resource("CouchDbSource"), "CouchDbSource.sources.knative.dev"; got.String() != want {
-		t.Errorf("Resource(CouchDbSource) = %v, want %v", got.String(), want)
+	if got, want := Resource("MongoDbSource"), "MongoDbSource.sources.knative.dev"; got.String() != want {
+		t.Errorf("Resource(MongoDbSource) = %v, want %v", got.String(), want)
 	}
 
 	if got, want := SchemeGroupVersion.String(), "sources.knative.dev/v1alpha1"; got != want {
@@ -47,8 +47,8 @@ func TestKnownTypes(t *testing.T) {
 	types := scheme.KnownTypes(SchemeGroupVersion)
 
 	for _, name := range []string{
-		"CouchDbSource",
-		"CouchDbSourceList",
+		"MongoDbSource",
+		"MongoDbSourceList",
 	} {
 		if _, ok := types[name]; !ok {
 			t.Errorf("Did not find %q as registered type", name)
