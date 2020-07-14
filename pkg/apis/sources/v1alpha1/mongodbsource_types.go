@@ -32,7 +32,7 @@ import (
 // +genreconciler
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// MongoDbSource is the Schema for the githubsources API.
+// MongoDbSource is the Schema for the MongoDbSource API.
 // +k8s:openapi-gen=true
 type MongoDbSource struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -59,6 +59,8 @@ var (
 	_ resourcesemantics.GenericCRD = (*MongoDbSource)(nil)
 	// Check that MongoDbSource implements the Conditions duck type.
 	_ = duck.VerifyType(&MongoDbSource{}, &duckv1.Conditions{})
+	// Check that the type conforms to the duck Knative Resource shape.
+	_ duckv1.KRShaped = (*MongoDbSource)(nil)
 )
 
 // MongoDbSourceSpec defines the desired state of MongoDbSource.
@@ -72,7 +74,7 @@ type MongoDbSourceSpec struct {
 
 	// MongoDbCredentials is the credential to use to access MongoDb.
 	// Must be a secret. Only Name and Namespace are used.
-	Secret corev1.LocalObjectReference `json:"secret,omitempty"`
+	Secret corev1.LocalObjectReference `json:"secret"`
 
 	// Database is the database to watch for changes.
 	Database string `json:"database"`
@@ -82,6 +84,11 @@ type MongoDbSourceSpec struct {
 	Collection string `json:"collection,omitempty"`
 
 	// SourceSpec
+	// inherits duck/v1 SourceSpec, which currently provides:
+	// * Sink - a reference to an object that will resolve to a domain name or
+	//   a URI directly to use as the sink.
+	// * CloudEventOverrides - defines overrides to control the output format
+	//   and modifications of the event sent to the sink.
 	duckv1.SourceSpec `json:",inline"`
 }
 
@@ -104,9 +111,4 @@ type MongoDbSourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MongoDbSource `json:"items"`
-}
-
-// GetStatus retrieves the duck status for this resource. Implements the KRShaped interface.
-func (m *MongoDbSource) GetStatus() *duckv1.Status {
-	return &m.Status.Status
 }

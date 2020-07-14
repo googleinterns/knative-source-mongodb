@@ -720,7 +720,6 @@ k8s.io/utils/trace
 # knative.dev/eventing v0.16.0
 ## explicit
 knative.dev/eventing/pkg/apis/duck
-knative.dev/eventing/pkg/apis/sources
 # knative.dev/pkg v0.0.0-20200702222342-ea4d6e985ba0
 ## explicit
 knative.dev/pkg/apis

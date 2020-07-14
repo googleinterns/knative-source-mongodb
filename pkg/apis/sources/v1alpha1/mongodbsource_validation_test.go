@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/webhook/resourcesemantics"
 
 	"knative.dev/pkg/apis"
@@ -31,16 +33,95 @@ func TestMongoDbSourceValidation(t *testing.T) {
 		cr   resourcesemantics.GenericCRD
 		want *apis.FieldError
 	}{
-		"missing sink": {
+		"missing all": {
 			cr: &MongoDbSource{
 				Spec: MongoDbSourceSpec{},
 			},
 			want: func() *apis.FieldError {
 				var errs *apis.FieldError
-				fe := apis.ErrMissingField("spec.serviceAccountName, spec.sink")
+				fe := apis.ErrMissingField("spec.database, spec.secret, spec.serviceAccountName, spec.sink")
 				errs = errs.Also(fe)
 				return errs
 			}(),
+		},
+		"Incorrect Sink": {
+			cr: &MongoDbSource{
+				Spec: MongoDbSourceSpec{
+					ServiceAccountName: "google",
+					Secret: corev1.LocalObjectReference{
+						Name: "pwd",
+					},
+					Database:   "db",
+					Collection: "col1",
+					SourceSpec: duckv1.SourceSpec{
+						Sink: duckv1.Destination{
+							Ref: &duckv1.KReference{
+								APIVersion: "foo",
+								// Kind:       "bar",
+								Namespace: "baz",
+								Name:      "qux",
+							},
+						},
+					},
+				},
+			},
+			want: func() *apis.FieldError {
+				var errs *apis.FieldError
+				fe := apis.ErrMissingField("spec.sink.ref.kind")
+				errs = errs.Also(fe)
+				return errs
+			}(),
+		},
+		"No Secret": {
+			cr: &MongoDbSource{
+				Spec: MongoDbSourceSpec{
+					ServiceAccountName: "google",
+					Secret: corev1.LocalObjectReference{
+						Name: "",
+					},
+					Database:   "db",
+					Collection: "col1",
+					SourceSpec: duckv1.SourceSpec{
+						Sink: duckv1.Destination{
+							Ref: &duckv1.KReference{
+								APIVersion: "foo",
+								Kind:       "bar",
+								Namespace:  "baz",
+								Name:       "qux",
+							},
+						},
+					},
+				},
+			},
+			want: func() *apis.FieldError {
+				var errs *apis.FieldError
+				fe := apis.ErrMissingField("spec.secret")
+				errs = errs.Also(fe)
+				return errs
+			}(),
+		},
+		"All fields present": {
+			cr: &MongoDbSource{
+				Spec: MongoDbSourceSpec{
+					ServiceAccountName: "google",
+					Secret: corev1.LocalObjectReference{
+						Name: "pwd",
+					},
+					Database:   "db",
+					Collection: "col1",
+					SourceSpec: duckv1.SourceSpec{
+						Sink: duckv1.Destination{
+							Ref: &duckv1.KReference{
+								APIVersion: "foo",
+								Kind:       "bar",
+								Namespace:  "baz",
+								Name:       "qux",
+							},
+						},
+					},
+				},
+			},
+			want: nil,
 		},
 	}
 

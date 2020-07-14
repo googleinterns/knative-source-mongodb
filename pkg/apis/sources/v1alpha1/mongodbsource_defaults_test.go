@@ -28,18 +28,26 @@ func TestMongoDbDefaults(t *testing.T) {
 		initial  MongoDbSource
 		expected MongoDbSource
 	}{
-		"nil spec": {
-			initial: MongoDbSource{},
-			expected: MongoDbSource{
-				Spec: MongoDbSourceSpec{},
-			},
-		},
-		"feed not set": {
+		"service account not set": {
 			initial: MongoDbSource{
 				Spec: MongoDbSourceSpec{},
 			},
 			expected: MongoDbSource{
-				Spec: MongoDbSourceSpec{},
+				Spec: MongoDbSourceSpec{
+					ServiceAccountName: "default",
+				},
+			},
+		},
+		"service account set": {
+			initial: MongoDbSource{
+				Spec: MongoDbSourceSpec{
+					ServiceAccountName: "test",
+				},
+			},
+			expected: MongoDbSource{
+				Spec: MongoDbSourceSpec{
+					ServiceAccountName: "test",
+				},
 			},
 		},
 	}

@@ -22,15 +22,15 @@ import (
 )
 
 func TestRegisterHelpers(t *testing.T) {
-	if got, want := Kind("MongoDbSource"), "MongoDbSource.sources.knative.dev"; got.String() != want {
+	if got, want := Kind("MongoDbSource"), "MongoDbSource.sources.google.com"; got.String() != want {
 		t.Errorf("Kind(MongoDbSource) = %v, want %v", got.String(), want)
 	}
 
-	if got, want := Resource("MongoDbSource"), "MongoDbSource.sources.knative.dev"; got.String() != want {
+	if got, want := Resource("MongoDbSource"), "MongoDbSource.sources.google.com"; got.String() != want {
 		t.Errorf("Resource(MongoDbSource) = %v, want %v", got.String(), want)
 	}
 
-	if got, want := SchemeGroupVersion.String(), "sources.knative.dev/v1alpha1"; got != want {
+	if got, want := SchemeGroupVersion.String(), "sources.google.com/v1alpha1"; got != want {
 		t.Errorf("SchemeGroupVersion() = %v, want %v", got, want)
 	}
 

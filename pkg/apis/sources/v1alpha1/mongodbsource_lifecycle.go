@@ -20,6 +20,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"knative.dev/eventing/pkg/apis/duck"
 	"knative.dev/pkg/apis"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 )
 
 const (
@@ -42,6 +43,11 @@ var MongoDbCondSet = apis.NewLivingConditionSet(
 // GetConditionSet retrieves the condition set for this resource. Implements the KRShaped interface.
 func (*MongoDbSource) GetConditionSet() apis.ConditionSet {
 	return MongoDbCondSet
+}
+
+// GetStatus retrieves the duck status for this resource. Implements the KRShaped interface.
+func (m *MongoDbSource) GetStatus() *duckv1.Status {
+	return &m.Status.Status
 }
 
 // GetCondition returns the condition currently associated with the given type, or nil.

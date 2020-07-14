@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"knative.dev/pkg/apis"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
@@ -29,14 +30,14 @@ func (m *MongoDbSource) Validate(ctx context.Context) *apis.FieldError {
 	var errs *apis.FieldError
 
 	//validation for "spec" field.
-	errs = errs.Also(m.Spec.Validate(ctx).ViaField("spec"))
+	errs = errs.Also(m.Spec.ValidateSpecs(ctx).ViaField("spec"))
 
 	//errs is nil if everything is fine.
 	return errs
 }
 
-// Validate validates MongoDbSourceSpecs.
-func (ms *MongoDbSourceSpec) Validate(ctx context.Context) *apis.FieldError {
+// ValidateSpecs validates MongoDbSourceSpecs.
+func (ms *MongoDbSourceSpec) ValidateSpecs(ctx context.Context) *apis.FieldError {
 	var errs *apis.FieldError
 
 	// Validate sink.
@@ -50,5 +51,16 @@ func (ms *MongoDbSourceSpec) Validate(ctx context.Context) *apis.FieldError {
 	if ms.ServiceAccountName == "" {
 		errs = errs.Also(apis.ErrMissingField("serviceAccountName"))
 	}
+
+	//Validation for Database field.
+	if ms.Database == "" {
+		errs = errs.Also(apis.ErrMissingField("database"))
+	}
+
+	//Validation for secret field.
+	if equality.Semantic.DeepEqual(ms.Secret, corev1.LocalObjectReference{}) {
+		errs = errs.Also(apis.ErrMissingField("secret"))
+	}
+
 	return errs
 }

@@ -24,6 +24,6 @@ import (
 func (m *MongoDbSource) SetDefaults(ctx context.Context) {
 	// ServiceAccountName is unspecified, default to the "default" service account.
 	if m != nil && m.Spec.ServiceAccountName == "" {
-		m.Spec.ServiceAccountName = ""
+		m.Spec.ServiceAccountName = "default"
 	}
 }

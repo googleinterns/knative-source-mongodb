@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"knative.dev/eventing/pkg/apis/sources"
+	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources"
 )
 
 var (
