@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
-	"knative.dev/eventing/pkg/apis/duck"
 	"knative.dev/pkg/apis"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
 )
@@ -75,10 +74,22 @@ func (m *MongoDbSourceStatus) MarkNoSink(reason, messageFormat string, messageA 
 	MongoDbCondSet.Manage(m).MarkFalse(MongoDbConditionSinkProvided, reason, messageFormat, messageA...)
 }
 
+// deploymentIsAvailable determines if the provided deployment is available. Note that if it cannot
+// determine the Deployment's availability, it returns `def` (short for default). From https://github.com/knative/eventing/blob/master/pkg/apis/duck/lifecycle_helper.go .
+func deploymentIsAvailable(d *appsv1.DeploymentStatus, def bool) bool {
+	// Check if the Deployment is available.
+	for _, cond := range d.Conditions {
+		if cond.Type == appsv1.DeploymentAvailable {
+			return cond.Status == "True"
+		}
+	}
+	return def
+}
+
 // PropagateDeploymentAvailability uses the availability of the provided Deployment to determine if
 // MongoDbConditionDeployed should be marked as true or false.
 func (m *MongoDbSourceStatus) PropagateDeploymentAvailability(d *appsv1.Deployment) {
-	if duck.DeploymentIsAvailable(&d.Status, false) {
+	if deploymentIsAvailable(&d.Status, false) {
 		MongoDbCondSet.Manage(m).MarkTrue(MongoDbConditionDeployed)
 	} else {
 		// I don't know how to propagate the status well, so just give the name of the Deployment
