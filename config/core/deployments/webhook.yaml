@@ -44,7 +44,7 @@ spec:
           - name: CONFIG_LOGGING_NAME
             value: config-logging
           - name: METRICS_DOMAIN
-            value: knative.dev/eventing
+            value: google.com/sources
           - name: WEBHOOK_NAME
             value: mongodb-webhook
         ports:

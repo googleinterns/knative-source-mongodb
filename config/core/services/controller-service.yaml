@@ -17,6 +17,7 @@ kind: Service
 metadata:
   labels:
     control-plane: mongodb-controller-manager
+    sources.google.com/release: devel
   name: mongodb-controller-manager
   namespace: google-sources
 spec:

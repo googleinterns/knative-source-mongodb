@@ -14,7 +14,7 @@
 
 
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: mongodb-controller-manager
   namespace: google-sources
@@ -22,10 +22,10 @@ metadata:
     sources.google.com/release: devel
     control-plane: mongodb-controller-manager
 spec:
+  replicas: 1
   selector:
     matchLabels: &labels
       control-plane: mongodb-controller-manager
-  serviceName: mongodb-controller-manager
   template:
     metadata:
       labels: *labels
@@ -44,7 +44,7 @@ spec:
         - name: CONFIG_OBSERVABILITY_NAME
           value: config-observability
         - name: METRICS_DOMAIN
-          value: knative.dev/sources
+          value: google.com/sources
         - name: CONFIG_LEADERELECTION_NAME
           value: config-leader-election-mongodb
         - name: MONGODB_RA_IMAGE

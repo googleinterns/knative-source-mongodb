@@ -17,6 +17,8 @@ kind: ConfigMap
 metadata:
   name: config-logging
   namespace: google-sources
+  labels:
+    sources.google.com/release: devel  
 data:
   # Common configuration for all Knative codebase
   zap-logger-config: |

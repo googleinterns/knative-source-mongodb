@@ -15,7 +15,7 @@
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: defaulting.webhook.mongodb.messaging.knative.dev
+  name: defaulting.webhook.mongodbsources.sources.google.com
   labels:
     sources.google.com/release: devel
 webhooks:
@@ -24,14 +24,14 @@ webhooks:
   clientConfig:
     service:
       name: mongodb-webhook
-      namespace: knative-eventing
+      namespace: google-sources
   failurePolicy: Fail
-  name: defaulting.webhook.mongodb.eventing.knative.dev
+  name: defaulting.webhook.mongodbsources.sources.google.com
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validation.webhook.mongodb.messaging.knative.dev
+  name: validation.webhook.mongodbsources.sources.google.com
   labels:
     sources.google.com/release: devel
 webhooks:
@@ -40,15 +40,15 @@ webhooks:
   clientConfig:
     service:
       name: mongodb-webhook
-      namespace: knative-eventing
+      namespace: google-sources
   failurePolicy: Fail
-  name: validation.webhook.mongodb.eventing.knative.dev
+  name: validation.webhook.mongodbsources.sources.google.com
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: eventing-webhook-certs
-  namespace: knative-eventing
+  name: google-sources-webhooks-certs
+  namespace: google-sources
   labels:
     sources.google.com/release: devel
 # The data is populated at install time.

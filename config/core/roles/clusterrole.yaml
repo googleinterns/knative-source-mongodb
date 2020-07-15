@@ -16,6 +16,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: mongodb-controller
+  labels:
+    sources.google.com/release: devel  
 rules:
 - apiGroups:
   - apps
