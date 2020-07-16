@@ -113,7 +113,7 @@ func main() {
 	ctx := webhook.WithOptions(signals.NewContext(), webhook.Options{
 		ServiceName: admissionWebhookName,
 		Port:        8443,
-		SecretName:  "google-sources-webhooks-certs",
+		SecretName:  "webhooks-certs",
 	})
 
 	sharedmain.WebhookMainWithContext(ctx, admissionWebhookName,

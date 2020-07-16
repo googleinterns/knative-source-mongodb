@@ -24,7 +24,7 @@ roleRef:
   name: mongodb-controller
 subjects:
 - kind: ServiceAccount
-  name: mongodb-controller-manager
+  name: controller
   namespace: google-sources
 
 ---
@@ -37,7 +37,7 @@ metadata:
     sources.google.com/release: devel
 subjects:
 - kind: ServiceAccount
-  name: mongodb-controller-manager
+  name: controller
   namespace: google-sources
 # An aggregated ClusterRole for all Addressable CRDs.
 # Ref: https://github.com/knative/eventing/tree/master/config/core/rolesaddressable-resolvers-clusterrole.yaml
@@ -56,7 +56,7 @@ metadata:
     sources.google.com/release: devel
 subjects:
   - kind: ServiceAccount
-    name: mongodb-webhook
+    name: webhook
     namespace: google-sources
 roleRef:
   kind: ClusterRole

@@ -16,13 +16,13 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: mongodb-controller-manager
+    control-plane: controller
     sources.google.com/release: devel
-  name: mongodb-controller-manager
+  name: controller
   namespace: google-sources
 spec:
   selector:
-    control-plane: mongodb-controller-manager
+    control-plane: controller
   ports:
   - name: https-mongodb
     port: 443
