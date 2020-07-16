@@ -34,9 +34,14 @@ rules:
       - ""
     resources:
       - "secrets"
+      - "namespaces"
     verbs:
       - "get"
       - "create"
+      - "update"
+      - "list"
+      - "watch"
+      - "patch"
 
   # For getting our Deployment so we can decorate with ownerref.
   - apiGroups:
@@ -58,6 +63,7 @@ rules:
       - "admissionregistration.k8s.io"
     resources:
       - "mutatingwebhookconfigurations"
+      - "validatingwebhookconfigurations"
     verbs:
       - "get"
       - "list"
@@ -66,7 +72,6 @@ rules:
       - "delete"
       - "patch"
       - "watch"
-
   # Our own resources and statuses we care about.
   - apiGroups:
       - "sources.google.com"

@@ -44,6 +44,26 @@ webhooks:
   failurePolicy: Fail
   name: validation.webhook.sources.google.com
 ---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: config.webhook.sources.google.com
+  labels:
+    sources.google.com/release: devel
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      service:
+        name: mongodb-webhook
+        namespace: google-sources
+    failurePolicy: Fail
+    name: config.webhook.sources.google.com
+    namespaceSelector:
+      matchExpressions:
+        - key: sources.google.com/release
+          operator: Exists
+---
 apiVersion: v1
 kind: Secret
 metadata:
