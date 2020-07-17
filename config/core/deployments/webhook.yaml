@@ -15,7 +15,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongodb-webhook
+  name: webhook
   namespace: google-sources
   labels:
     sources.google.com/release: devel
@@ -23,17 +23,17 @@ spec:
   replicas: 1
   selector:
     matchLabels: &labels
-      app: mongodb-webhook
-      role: mongodb-webhook
+      app: webhook
+      role: webhook
   template:
     metadata:
       annotations:
         sidecar.istio.io/inject: "false"
       labels: *labels
     spec:
-      serviceAccountName: mongodb-webhook
+      serviceAccountName: webhook
       containers:
-      - name: mongodb-webhook
+      - name: webhook
         terminationMessagePolicy: FallbackToLogsOnError
         image: ko://github.com/googleinterns/knative-source-mongodb/cmd/webhook
         env:
@@ -46,7 +46,7 @@ spec:
           - name: METRICS_DOMAIN
             value: google.com/sources
           - name: WEBHOOK_NAME
-            value: mongodb-webhook
+            value: webhook
         ports:
           - containerPort: 9090
             name: metrics

@@ -18,12 +18,11 @@ metadata:
   labels:
     sources.google.com/release: devel
     role: mongodb-webhook
-  name: mongodb-webhook
+  name: webhook
   namespace: google-sources
 spec:
   ports:
-    - name: https-webhook
-      port: 443
+    - port: 443
       targetPort: 8443
   selector:
-    role: mongodb-webhook
+    role: webhook
