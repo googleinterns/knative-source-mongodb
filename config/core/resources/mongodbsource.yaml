@@ -1,4 +1,3 @@
-
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,26 +15,25 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  creationTimestamp: null
   labels:
     sources.google.com/release: devel
     duck.knative.dev/source: "true"
-    knative.dev/crd-install: "true"
+    sources.google.com/crd-install: "true"
   annotations:
     registry.knative.dev/eventTypes: |
       [
-        { "type": "mongodb.document.update" },
-        { "type": "mongodb.document.delete" }
+        { "type": "google.com.mongodb.document.update" },
+        { "type": "google.com.mongodb.document.delete" },
+        { "type": "google.com.mongodb.document.insert" }
       ]
   name: mongodbsources.sources.google.com
 spec:
   group: sources.google.com
   names:
     categories:
-    - all
-    - knative
-    - eventing
-    - sources
+      - all
+      - knative
+      - sources
     kind: MongoDbSource
     plural: mongodbsources
   scope: Namespaced

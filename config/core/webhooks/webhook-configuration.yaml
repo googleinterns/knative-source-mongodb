@@ -15,7 +15,7 @@
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: defaulting.webhook.mongodbsources.sources.google.com
+  name: defaulting.webhook.sources.google.com
   labels:
     sources.google.com/release: devel
 webhooks:
@@ -23,15 +23,15 @@ webhooks:
   - v1beta1
   clientConfig:
     service:
-      name: mongodb-webhook
+      name: webhook
       namespace: google-sources
   failurePolicy: Fail
-  name: defaulting.webhook.mongodbsources.sources.google.com
+  name: defaulting.webhook.sources.google.com
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validation.webhook.mongodbsources.sources.google.com
+  name: validation.webhook.sources.google.com
   labels:
     sources.google.com/release: devel
 webhooks:
@@ -39,15 +39,35 @@ webhooks:
   - v1beta1
   clientConfig:
     service:
-      name: mongodb-webhook
+      name: webhook
       namespace: google-sources
   failurePolicy: Fail
-  name: validation.webhook.mongodbsources.sources.google.com
+  name: validation.webhook.sources.google.com
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: config.webhook.sources.google.com
+  labels:
+    sources.google.com/release: devel
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      service:
+        name: webhook
+        namespace: google-sources
+    failurePolicy: Fail
+    name: config.webhook.sources.google.com
+    namespaceSelector:
+      matchExpressions:
+        - key: sources.google.com/release
+          operator: Exists
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: google-sources-webhooks-certs
+  name: webhooks-certs
   namespace: google-sources
   labels:
     sources.google.com/release: devel

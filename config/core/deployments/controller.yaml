@@ -16,24 +16,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mongodb-controller-manager
+  name: controller
   namespace: google-sources
   labels:
     sources.google.com/release: devel
-    control-plane: mongodb-controller-manager
+    control-plane: controller
 spec:
   replicas: 1
   selector:
     matchLabels: &labels
-      control-plane: mongodb-controller-manager
+      control-plane: controller
   template:
     metadata:
       labels: *labels
     spec:
-      serviceAccountName: mongodb-controller-manager
+      serviceAccountName: controller
       containers:
       - image: ko://github.com/googleinterns/knative-source-mongodb/cmd/controller
-        name: manager
+        name: controller
         env:
         - name: SYSTEM_NAMESPACE
           valueFrom:
@@ -46,16 +46,11 @@ spec:
         - name: METRICS_DOMAIN
           value: google.com/sources
         - name: CONFIG_LEADERELECTION_NAME
-          value: config-leader-election-mongodb
+          value: config-leader-election
         - name: MONGODB_RA_IMAGE
           value: ko://github.com/googleinterns/knative-source-mongodb/cmd/receive_adapter
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-          limits:
-            cpu: 1000m
-            memory: 1000Mi
+      # TODO set proper resource limits.
+
       terminationGracePeriodSeconds: 10
       volumes:
         - name: config-logging
