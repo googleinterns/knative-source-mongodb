@@ -15,3 +15,76 @@ limitations under the License.
 */
 
 package mongodb
+
+import (
+	"context"
+
+	pkgreconciler "github.com/googleinterns/knative-source-mongodb/pkg/reconciler"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/tracker"
+
+	reconcilersource "knative.dev/eventing/pkg/reconciler/source"
+
+	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
+	reconcilermongodbsource "knative.dev/sample-source/pkg/client/injection/reconciler/samples/v1alpha1/mongodbsource"
+	"knative.dev/sample-source/pkg/reconciler"
+	"knative.dev/sample-source/pkg/reconciler/mongodb/resources"
+)
+
+// newReconciledNormal makes a new reconciler event with event type Normal, and
+// reason MongoDbSourceReconciled.
+func newReconciledNormal(namespace, name string) pkgreconciler.Event {
+	return pkgreconciler.NewEvent(corev1.EventTypeNormal, "MongoDbSourceReconciled", "MongoDbSource reconciled: \"%s/%s\"", namespace, name)
+}
+
+// Reconciler reconciles a MongoDbSource object
+type Reconciler struct {
+	ReceiveAdapterImage string `envconfig:"MONGODB_SOURCE_RA_IMAGE" required:"true"`
+
+	dr  *reconciler.DeploymentReconciler
+	sbr *reconciler.SinkBindingReconciler
+
+	configAccessor reconcilersource.ConfigAccessor
+}
+
+// Check that our Reconciler implements Interface
+var _ reconcilermongodbsource.Interface = (*Reconciler)(nil)
+
+// ReconcileKind implements Interface.ReconcileKind.
+func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSource) pkgreconciler.Event {
+	ra, event := r.dr.ReconcileDeployment(ctx, src, resources.MakeReceiveAdapter(&resources.ReceiveAdapterArgs{
+		EventSource:    src.Namespace + "/" + src.Name,
+		Image:          r.ReceiveAdapterImage,
+		Source:         src,
+		Labels:         resources.Labels(src.Name),
+		AdditionalEnvs: r.configAccessor.ToEnvVars(), // Grab config envs for tracing/logging/metrics
+	}))
+	if ra != nil {
+		src.Status.PropagateDeploymentAvailability(ra)
+	}
+	if event != nil {
+		logging.FromContext(ctx).Infof("returning because event from ReconcileDeployment")
+		return event
+	}
+
+	if ra != nil {
+		logging.FromContext(ctx).Info("going to ReconcileSinkBinding")
+		sb, event := r.sbr.ReconcileSinkBinding(ctx, src, src.Spec.SourceSpec, tracker.Reference{
+			APIVersion: appsv1.SchemeGroupVersion.String(),
+			Kind:       "Deployment",
+			Namespace:  ra.Namespace,
+			Name:       ra.Name,
+		})
+		logging.FromContext(ctx).Infof("ReconcileSinkBinding returned %#v", sb)
+		if sb != nil {
+			src.Status.MarkSink(sb.Status.SinkURI)
+		}
+		if event != nil {
+			return event
+		}
+	}
+
+	return newReconciledNormal(src.Namespace, src.Name)
+}
