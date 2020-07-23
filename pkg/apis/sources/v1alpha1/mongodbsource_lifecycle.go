@@ -29,6 +29,10 @@ const (
 	// MongoDbConditionSinkProvided has status True when the MongoDbSource has been configured with a sink target.
 	MongoDbConditionSinkProvided apis.ConditionType = "SinkProvided"
 
+	// MongoDbConditionConnectionEstablished has status True when the MongoDbSource has correct credentials and
+	// was able to successfully connect to the correct database or collection.
+	MongoDbConditionConnectionEstablished apis.ConditionType = "ConnectionEstablished"
+
 	// MongoDbConditionDeployed has status True when the MongoDbSource has had it's deployment created.
 	MongoDbConditionDeployed apis.ConditionType = "Deployed"
 )
@@ -36,6 +40,7 @@ const (
 // MongoDbCondSet holds NewLivingConditionSet.
 var MongoDbCondSet = apis.NewLivingConditionSet(
 	MongoDbConditionSinkProvided,
+	MongoDbConditionConnectionEstablished,
 	MongoDbConditionDeployed,
 )
 
@@ -72,6 +77,16 @@ func (m *MongoDbSourceStatus) MarkSink(uri *apis.URL) {
 // MarkNoSink sets the condition that the source does not have a sink configured.
 func (m *MongoDbSourceStatus) MarkNoSink(reason, messageFormat string, messageA ...interface{}) {
 	MongoDbCondSet.Manage(m).MarkFalse(MongoDbConditionSinkProvided, reason, messageFormat, messageA...)
+}
+
+// MarkConnectionSuccess sets the condition that the source has correct credentials and that the specified database or collection is found.
+func (m *MongoDbSourceStatus) MarkConnectionSuccess() {
+	MongoDbCondSet.Manage(m).MarkTrue(MongoDbConditionConnectionEstablished)
+}
+
+// MarkConnectionFailed sets the condition that the source has incorrect credentials or that the specified database or collection is not found.
+func (m *MongoDbSourceStatus) MarkConnectionFailed(err error) {
+	MongoDbCondSet.Manage(m).MarkFalse(MongoDbConditionConnectionEstablished, "Connection failed: incorrect credentials or database or collection not found", err.Error())
 }
 
 // deploymentIsAvailable determines if the provided deployment is available. Note that if it cannot

@@ -18,12 +18,12 @@ package main
 
 import (
 	// The set of controllers this controller process runs.
-	"github.com/googleinterns/knative-source-mongodb/pkg/reconciler/mongodb"
+	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/reconciler/mongodb"
 
 	// This defines the shared main for injected controllers.
 	"knative.dev/pkg/injection/sharedmain"
 )
 
 func main() {
-	sharedmain.Main("mongodb-source-controller", mongodb.NewController)
+	sharedmain.Main("controller", mongodbsource.NewController)
 }
