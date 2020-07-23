@@ -16,6 +16,14 @@ limitations under the License.
 
 package main
 
-func main() {
+import (
+	// The set of controllers this controller process runs.
+	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/reconciler/mongodb"
 
+	// This defines the shared main for injected controllers.
+	"knative.dev/pkg/injection/sharedmain"
+)
+
+func main() {
+	sharedmain.Main("controller", mongodbsource.NewController)
 }
