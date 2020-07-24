@@ -104,6 +104,7 @@ func TestMongoDbGetCondition(t *testing.T) {
 			m := &MongoDbSourceStatus{}
 			m.InitializeConditions()
 			m.MarkSink(apis.HTTP("example"))
+			m.MarkConnectionSuccess()
 			m.PropagateDeploymentAvailability(availableDeployment)
 			return m
 		}(),
@@ -137,6 +138,9 @@ func TestMongoDbInitializeConditions(t *testing.T) {
 			SourceStatus: duckv1.SourceStatus{
 				Status: duckv1.Status{
 					Conditions: []apis.Condition{{
+						Type:   MongoDbConditionConnectionEstablished,
+						Status: corev1.ConditionUnknown,
+					}, {
 						Type:   MongoDbConditionDeployed,
 						Status: corev1.ConditionUnknown,
 					}, {
@@ -165,6 +169,9 @@ func TestMongoDbInitializeConditions(t *testing.T) {
 			SourceStatus: duckv1.SourceStatus{
 				Status: duckv1.Status{
 					Conditions: []apis.Condition{{
+						Type:   MongoDbConditionConnectionEstablished,
+						Status: corev1.ConditionUnknown,
+					}, {
 						Type:   MongoDbConditionDeployed,
 						Status: corev1.ConditionUnknown,
 					}, {
@@ -193,6 +200,9 @@ func TestMongoDbInitializeConditions(t *testing.T) {
 			SourceStatus: duckv1.SourceStatus{
 				Status: duckv1.Status{
 					Conditions: []apis.Condition{{
+						Type:   MongoDbConditionConnectionEstablished,
+						Status: corev1.ConditionUnknown,
+					}, {
 						Type:   MongoDbConditionDeployed,
 						Status: corev1.ConditionUnknown,
 					}, {
@@ -216,6 +226,9 @@ func TestMongoDbInitializeConditions(t *testing.T) {
 			SourceStatus: duckv1.SourceStatus{
 				Status: duckv1.Status{
 					Conditions: []apis.Condition{{
+						Type:   MongoDbConditionConnectionEstablished,
+						Status: corev1.ConditionUnknown,
+					},{
 						Type:   MongoDbConditionDeployed,
 						Status: corev1.ConditionUnknown,
 					}, {
@@ -240,6 +253,9 @@ func TestMongoDbInitializeConditions(t *testing.T) {
 			SourceStatus: duckv1.SourceStatus{
 				Status: duckv1.Status{
 					Conditions: []apis.Condition{{
+						Type:   MongoDbConditionConnectionEstablished,
+						Status: corev1.ConditionUnknown,
+					},{
 						Type:   MongoDbConditionDeployed,
 						Status: corev1.ConditionUnknown,
 					}, {
