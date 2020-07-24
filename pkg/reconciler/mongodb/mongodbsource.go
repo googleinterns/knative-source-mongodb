@@ -14,4 +14,121 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mongodb
+package mongodbsource
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"go.uber.org/zap"
+	"knative.dev/pkg/logging"
+
+	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
+	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	v1 "k8s.io/api/core/v1"
+	corev1listers "k8s.io/client-go/listers/core/v1"
+	reconciler "knative.dev/pkg/reconciler"
+)
+
+// newReconciledNormal makes a new reconciler event with event type Normal, and
+// reason MongoDbSourceReconciled.
+func newReconciledNormal(namespace, name string) reconciler.Event {
+	return reconciler.NewEvent(v1.EventTypeNormal, "MongoDbSourceReconciled", "MongoDbSource reconciled: \"%s/%s\"", namespace, name)
+}
+
+// Reconciler implements controller.Reconciler for MongoDbSource resources.
+type Reconciler struct {
+	// Lister
+	secretLister corev1listers.SecretLister
+}
+
+// Check that our Reconciler implements Interface
+var _ mongodbsource.Interface = (*Reconciler)(nil)
+
+// ReconcileKind implements Interface.ReconcileKind.
+func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSource) reconciler.Event {
+	src.Status.InitializeConditions()
+	src.Status.ObservedGeneration = src.Generation
+
+	// Check the secret, credentials, database and collection existance.
+	err := r.checkConnection(ctx, src)
+	if err != nil {
+		src.Status.MarkConnectionFailed(err)
+		return err
+	}
+	src.Status.MarkConnectionSuccess()
+
+	return newReconciledNormal(src.Namespace, src.Name)
+}
+
+// checkConnection checks the secret, credentials, database and collection existance.
+func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbSource) reconciler.Event {
+	// Try to connect to the database and see if it works.
+	secret, err := r.secretLister.Secrets(src.Namespace).Get(src.Spec.Secret.Name)
+	if err != nil {
+		logging.FromContext(ctx).Desugar().Error("Unable to read MongoDb credentials secret", zap.Error(err))
+		return err
+	}
+	rawURI, ok := secret.Data["URI"]
+	if !ok {
+		logging.FromContext(ctx).Desugar().Error("Unable to get MongoDb URI field", zap.Any("secretName", secret.Name), zap.Any("secretNamespace", secret.Namespace))
+		return err
+	}
+	URI := string(rawURI)
+
+	// Connect to the MongoDb replica-set.
+	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
+	if err != nil {
+		logging.FromContext(ctx).Desugar().Error("Couldn't connect to database", zap.Error(err))
+		return err
+	}
+	err = client.Connect(ctx)
+	if err != nil {
+		logging.FromContext(ctx).Desugar().Error("Couldn't connect to database", zap.Error(err))
+		return err
+	}
+	defer client.Disconnect(ctx)
+
+	// See if database exists in available databases.
+	databases, err := client.ListDatabaseNames(ctx, bson.M{})
+	if err != nil {
+		logging.FromContext(ctx).Error("Couldn't look up existing databases", zap.Error(err))
+		return err
+	}
+	if !stringInSlice(src.Spec.Database, databases) {
+		err = errors.New("Couldn't find database name in available databases")
+		logging.FromContext(ctx).Error("Couldn't find database in available database", zap.Any("database", src.Spec.Database), zap.Any("availableDatabases", fmt.Sprint(databases)), zap.Error(err))
+		return err
+	}
+
+	// See if collection exists in available collections.
+	if src.Spec.Collection != "" {
+		collections, err := client.Database(src.Spec.Database).ListCollectionNames(ctx, bson.M{})
+		if err != nil {
+			logging.FromContext(ctx).Error("Couldn't look up existing collections", zap.Error(err))
+			return err
+		}
+		if !stringInSlice(src.Spec.Collection, collections) {
+			err = errors.New("Couldn't find collection name in available collections")
+			logging.FromContext(ctx).Error("Couldn't find collection in available collections", zap.Any("collection", src.Spec.Collection), zap.Any("availableCollections", fmt.Sprint(collections)), zap.Error(err))
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Helper function: finds if string exists in array of strings.
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
