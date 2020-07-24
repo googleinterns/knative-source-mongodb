@@ -18,7 +18,6 @@ package mongodbsource
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -27,14 +26,12 @@ import (
 
 	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
-	"knative.dev/pkg/apis"
-	duckv1 "knative.dev/pkg/apis/duck/v1"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	corev1 "k8s.io/api/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+	"knative.dev/pkg/apis"
 	reconciler "knative.dev/pkg/reconciler"
 	"knative.dev/pkg/resolver"
 )
@@ -77,12 +74,6 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSou
 		return err
 	}
 	src.Status.MarkSink(sinkURI)
-
-	// r.reconcileReceiveAdapter(ctx, src)
-	// TODO: make rsc.make receive adapter
-	// https://github.com/vaikas/postgressource/blob/b116b1097b87b9855a711f085f22996c522027bb/pkg/reconciler/deployment.go#L42
-	//  with lister, if doesnt exist create deployment
-	// if exist check hwo its different
 
 	return newReconciledNormal(src.Namespace, src.Name)
 }
@@ -145,7 +136,7 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 }
 
 // checkSink checks the resolvability of the specified sink
-func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSource) (*apis.URL, reconciler.Event) {
+func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSource) (*apis.URL, error) {
 	dest := src.Spec.Sink.DeepCopy()
 	if dest.Ref != nil {
 		if dest.Ref.Namespace == "" {
@@ -153,18 +144,7 @@ func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSourc
 		}
 	}
 
-	sinkURI, err := r.sinkResolver.URIFromDestinationV1(*dest, src)
-	if err != nil {
-		return nil, newWarningSinkNotFound(dest)
-	}
-
-	return sinkURI, nil
-}
-
-// Helper Fucntion: Creates Event about Sink not being found.
-func newWarningSinkNotFound(sink *duckv1.Destination) reconciler.Event {
-	b, _ := json.Marshal(sink)
-	return reconciler.NewEvent(corev1.EventTypeWarning, "SinkNotFound", "Sink not found: %s", string(b))
+	return r.sinkResolver.URIFromDestinationV1(*dest, src)
 }
 
 // Helper function: finds if string exists in array of strings.
