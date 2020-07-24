@@ -27,6 +27,8 @@ import (
 	configmap "knative.dev/pkg/configmap"
 	controller "knative.dev/pkg/controller"
 	logging "knative.dev/pkg/logging"
+	"knative.dev/pkg/resolver"
+
 )
 
 // NewController creates a Reconciler for MongoDbSource and returns the result of NewImpl.
@@ -44,6 +46,8 @@ func NewController(
 		secretLister: secretInformer.Lister(),
 	}
 	impl := v1alpha1mongodbsource.NewImpl(ctx, r)
+
+	r.sinkResolver = resolver.NewURIResolver(ctx, impl.EnqueueKey)
 
 	// Set up the event handlers.
 	logger.Info("Setting up event handlers.")

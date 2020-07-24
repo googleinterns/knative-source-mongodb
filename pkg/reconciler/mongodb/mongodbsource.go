@@ -26,31 +26,39 @@ import (
 
 	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	v1 "k8s.io/api/core/v1"
+
+	corev1 "k8s.io/api/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+	"knative.dev/pkg/apis"
 	reconciler "knative.dev/pkg/reconciler"
+	"knative.dev/pkg/resolver"
 )
 
 // newReconciledNormal makes a new reconciler event with event type Normal, and
 // reason MongoDbSourceReconciled.
 func newReconciledNormal(namespace, name string) reconciler.Event {
-	return reconciler.NewEvent(v1.EventTypeNormal, "MongoDbSourceReconciled", "MongoDbSource reconciled: \"%s/%s\"", namespace, name)
+	return reconciler.NewEvent(corev1.EventTypeNormal, "MongoDbSourceReconciled", "MongoDbSource reconciled: \"%s/%s\"", namespace, name)
+
 }
 
 // Reconciler implements controller.Reconciler for MongoDbSource resources.
 type Reconciler struct {
 	// Lister
 	secretLister corev1listers.SecretLister
+
+	sinkResolver *resolver.URIResolver
+
 }
 
 // Check that our Reconciler implements Interface
 var _ mongodbsource.Interface = (*Reconciler)(nil)
 
-// ReconcileKind implements Interface.ReconcileKind.
+
+// ReconcileKind implements Interface.ReconcileKind. Reconciles based on secret, credentials,
+// database & collection presence, sink resolvability and creates corresponding receive adapter.
 func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSource) reconciler.Event {
 	src.Status.InitializeConditions()
 	src.Status.ObservedGeneration = src.Generation
@@ -62,6 +70,14 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSou
 		return err
 	}
 	src.Status.MarkConnectionSuccess()
+
+	// Check the resolvability of the specified sink
+	sinkURI, err := r.resolveSink(ctx, src)
+	if err != nil {
+		src.Status.MarkNoSink("NotFound", "")
+		return err
+	}
+	src.Status.MarkSink(sinkURI)
 
 	return newReconciledNormal(src.Namespace, src.Name)
 }
@@ -121,6 +137,18 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 	}
 
 	return nil
+}
+
+// checkSink checks the resolvability of the specified sink
+func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSource) (*apis.URL, error) {
+	dest := src.Spec.Sink.DeepCopy()
+	if dest.Ref != nil {
+		if dest.Ref.Namespace == "" {
+			dest.Ref.Namespace = src.Namespace
+		}
+	}
+
+	return r.sinkResolver.URIFromDestinationV1(*dest, src)
 }
 
 // Helper function: finds if string exists in array of strings.
