@@ -19,6 +19,7 @@ package mongodbsource
 import (
 	"context"
 	"encoding/json"
+
 	"errors"
 	"fmt"
 
@@ -30,9 +31,11 @@ import (
 	"knative.dev/pkg/apis"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
 
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
 	corev1 "k8s.io/api/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	reconciler "knative.dev/pkg/reconciler"
@@ -43,6 +46,7 @@ import (
 // reason MongoDbSourceReconciled.
 func newReconciledNormal(namespace, name string) reconciler.Event {
 	return reconciler.NewEvent(corev1.EventTypeNormal, "MongoDbSourceReconciled", "MongoDbSource reconciled: \"%s/%s\"", namespace, name)
+
 }
 
 // Reconciler implements controller.Reconciler for MongoDbSource resources.
@@ -51,10 +55,12 @@ type Reconciler struct {
 	secretLister corev1listers.SecretLister
 
 	sinkResolver *resolver.URIResolver
+
 }
 
 // Check that our Reconciler implements Interface
 var _ mongodbsource.Interface = (*Reconciler)(nil)
+
 
 // ReconcileKind implements Interface.ReconcileKind. Reconciles based on secret, credentials,
 // database & collection presence, sink resolvability and creates corresponding receive adapter.
