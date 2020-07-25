@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -99,7 +100,23 @@ func TestMongoDbGetCondition(t *testing.T) {
 			Status: corev1.ConditionUnknown,
 		},
 	}, {
-		name: "mark sink and deployed",
+		name: "mark sink, deployed and connection failed",
+		ms: func() *MongoDbSourceStatus {
+			m := &MongoDbSourceStatus{}
+			m.InitializeConditions()
+			m.MarkSink(apis.HTTP("example"))
+			m.MarkConnectionFailed(errors.New(""))
+			m.PropagateDeploymentAvailability(availableDeployment)
+			return m
+		}(),
+		condQuery: MongoDbConditionReady,
+		want: &apis.Condition{
+			Type:   MongoDbConditionReady,
+			Status: corev1.ConditionFalse,
+			Reason: "Connection failed: incorrect credentials or database or collection not found",
+		},
+	}, {
+		name: "mark sink, deployed and connection established",
 		ms: func() *MongoDbSourceStatus {
 			m := &MongoDbSourceStatus{}
 			m.InitializeConditions()
@@ -228,7 +245,7 @@ func TestMongoDbInitializeConditions(t *testing.T) {
 					Conditions: []apis.Condition{{
 						Type:   MongoDbConditionConnectionEstablished,
 						Status: corev1.ConditionUnknown,
-					},{
+					}, {
 						Type:   MongoDbConditionDeployed,
 						Status: corev1.ConditionUnknown,
 					}, {
@@ -255,7 +272,7 @@ func TestMongoDbInitializeConditions(t *testing.T) {
 					Conditions: []apis.Condition{{
 						Type:   MongoDbConditionConnectionEstablished,
 						Status: corev1.ConditionUnknown,
-					},{
+					}, {
 						Type:   MongoDbConditionDeployed,
 						Status: corev1.ConditionUnknown,
 					}, {
