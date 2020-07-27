@@ -3,17 +3,25 @@ module github.com/googleinterns/knative-source-mongodb
 go 1.14
 
 require (
+	cloud.google.com/go v0.60.0 // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.1 // indirect
-	github.com/google/go-cmp v0.4.0
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/google/go-cmp v0.5.0
+	github.com/grpc-ecosystem/grpc-gateway v1.12.2 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.1-0.20191009090205-6c0755d89d1e // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/rogpeppe/go-internal v1.5.0 // indirect
 	go.mongodb.org/mongo-driver v1.1.2
-	go.uber.org/zap v1.14.1
+	go.uber.org/zap v1.15.0
+	golang.org/x/crypto v0.0.0-20200317142112-1b76d66859c6 // indirect
+	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
+	google.golang.org/genproto v0.0.0-20200707001353-8e8330bf89df // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
-	k8s.io/api v0.17.6
-	k8s.io/apimachinery v0.17.6
+	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
+	k8s.io/api v0.18.1
+	k8s.io/apimachinery v0.18.1
 	k8s.io/client-go v11.0.1-0.20190805182717-6502b5e7b1b5+incompatible
 	knative.dev/pkg v0.0.0-20200702222342-ea4d6e985ba0
 	knative.dev/test-infra v0.0.0-20200630141629-15f40fe97047
