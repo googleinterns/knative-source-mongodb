@@ -50,12 +50,10 @@ type Reconciler struct {
 	secretLister corev1listers.SecretLister
 
 	sinkResolver *resolver.URIResolver
-
 }
 
 // Check that our Reconciler implements Interface
 var _ mongodbsource.Interface = (*Reconciler)(nil)
-
 
 // ReconcileKind implements Interface.ReconcileKind. Reconciles based on secret, credentials,
 // database & collection presence, sink resolvability and creates corresponding receive adapter.

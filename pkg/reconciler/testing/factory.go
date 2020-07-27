@@ -35,7 +35,7 @@ import (
 	fakekubeclient "knative.dev/pkg/client/injection/kube/client/fake"
 	fakedynamicclient "knative.dev/pkg/injection/clients/dynamicclient/fake"
 
-	. "knative.dev/pkg/reconciler/testing"
+	reconcilertesting "knative.dev/pkg/reconciler/testing"
 )
 
 const (
@@ -48,8 +48,8 @@ const (
 type Ctor func(context.Context, *Listers, configmap.Watcher, map[string]interface{}) controller.Reconciler
 
 // MakeFactory creates a reconciler factory with fake clients and controller created by `ctor`.
-func MakeFactory(ctor Ctor) Factory {
-	return func(t *testing.T, r *TableRow) (controller.Reconciler, ActionRecorderList, EventList) {
+func MakeFactory(ctor Ctor) reconcilertesting.Factory {
+	return func(t *testing.T, r *reconcilertesting.TableRow) (controller.Reconciler, reconcilertesting.ActionRecorderList, reconcilertesting.EventList) {
 		ls := NewListers(r.Objects)
 
 		ctx := context.Background()
@@ -76,8 +76,8 @@ func MakeFactory(ctor Ctor) Factory {
 		eventRecorder := record.NewFakeRecorder(maxEventBufferSize)
 		ctx = controller.WithEventRecorder(ctx, eventRecorder)
 
-		PrependGenerateNameReactor(&client.Fake)
-		PrependGenerateNameReactor(&dynamicClient.Fake)
+		reconcilertesting.PrependGenerateNameReactor(&client.Fake)
+		reconcilertesting.PrependGenerateNameReactor(&dynamicClient.Fake)
 
 		// Set up our Controller from the fakes.
 		c := ctor(ctx, &ls, configmap.NewStaticWatcher(), r.OtherTestData)
@@ -95,14 +95,14 @@ func MakeFactory(ctor Ctor) Factory {
 
 		// Validate all Create operations through the serving client.
 		client.PrependReactor("create", "*", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
-			return ValidateCreates(ctx, action)
+			return reconcilertesting.ValidateCreates(ctx, action)
 		})
 		client.PrependReactor("update", "*", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
-			return ValidateUpdates(ctx, action)
+			return reconcilertesting.ValidateUpdates(ctx, action)
 		})
 
-		actionRecorderList := ActionRecorderList{dynamicClient, client, kubeClient}
-		eventList := EventList{Recorder: eventRecorder}
+		actionRecorderList := reconcilertesting.ActionRecorderList{dynamicClient, client, kubeClient}
+		eventList := reconcilertesting.EventList{Recorder: eventRecorder}
 
 		return c, actionRecorderList, eventList
 

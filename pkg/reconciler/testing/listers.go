@@ -18,9 +18,7 @@ package testing
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	"k8s.io/client-go/tools/cache"
 
@@ -32,21 +30,17 @@ import (
 	"knative.dev/pkg/reconciler/testing"
 )
 
-var sinkAddToScheme = func(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypeWithName(schema.GroupVersionKind{Group: "testing.sources.google.com", Version: "v1alpha1", Kind: "Sink"}, &unstructured.Unstructured{})
-	return nil
-}
-
 var clientSetSchemes = []func(*runtime.Scheme) error{
 	fakekubeclientset.AddToScheme,
 	fakesourcesclientset.AddToScheme,
-	sinkAddToScheme,
 }
 
+// Listers holds sorters.
 type Listers struct {
 	sorter testing.ObjectSorter
 }
 
+// NewListers creates a Listers object with objs.
 func NewListers(objs []runtime.Object) Listers {
 	scheme := runtime.NewScheme()
 
@@ -63,32 +57,34 @@ func NewListers(objs []runtime.Object) Listers {
 	return ls
 }
 
+// indexerFor returns the indexer for the given object.
 func (l *Listers) indexerFor(obj runtime.Object) cache.Indexer {
 	return l.sorter.IndexerForObjectType(obj)
 }
 
+// GetKubeObjects returns the kube objects.
 func (l *Listers) GetKubeObjects() []runtime.Object {
 	return l.sorter.ObjectsForSchemeFunc(fakekubeclientset.AddToScheme)
 }
 
-func (l *Listers) GetSinkObjects() []runtime.Object {
-	return l.sorter.ObjectsForSchemeFunc(sinkAddToScheme)
-}
-
+// GetSourcesObjects returns the sources objects.
 func (l *Listers) GetSourcesObjects() []runtime.Object {
 	return l.sorter.ObjectsForSchemeFunc(fakesourcesclientset.AddToScheme)
 }
 
+// GetAllObjects returns all the objects.
 func (l *Listers) GetAllObjects() []runtime.Object {
-	all := l.GetSinkObjects()
+	all := l.GetSourcesObjects()
 	all = append(all, l.GetKubeObjects()...)
 	return all
 }
 
+// GetDeploymentLister returns the Deployment lister.
 func (l *Listers) GetDeploymentLister() appsv1listers.DeploymentLister {
 	return appsv1listers.NewDeploymentLister(l.indexerFor(&appsv1.Deployment{}))
 }
 
+// GetMongoDbSourceLister returns the MongoDbSource lister.
 func (l *Listers) GetMongoDbSourceLister() v1alpha1listers.MongoDbSourceLister {
 	return v1alpha1listers.NewMongoDbSourceLister(l.indexerFor(&v1alpha1.MongoDbSource{}))
 }
