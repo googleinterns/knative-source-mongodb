@@ -20,21 +20,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"go.uber.org/zap"
 	"knative.dev/pkg/logging"
 
 	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
+	"github.com/googleinterns/knative-source-mongodb/pkg/reconciler/mongodb/resources"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"knative.dev/pkg/apis"
 	reconciler "knative.dev/pkg/reconciler"
 	"knative.dev/pkg/resolver"
+)
+
+// Declare Constants
+const (
+	// raImageEnvVar is the name of the environment variable that contains the receive adapter's
+	// image. It must be defined.
+	raImageEnvVar = "MONGODB_RA_IMAGE"
 )
 
 // newReconciledNormal makes a new reconciler event with event type Normal, and
@@ -46,10 +60,13 @@ func newReconciledNormal(namespace, name string) reconciler.Event {
 
 // Reconciler implements controller.Reconciler for MongoDbSource resources.
 type Reconciler struct {
-	// Lister
-	secretLister corev1listers.SecretLister
+	receiveAdapterImage string `envconfig:"MONGODB_RA_IMAGE" required:"true"`
+	kubeClientSet       kubernetes.Interface
+	sinkResolver        *resolver.URIResolver
 
-	sinkResolver *resolver.URIResolver
+	// Lister
+	deploymentLister appsv1listers.DeploymentLister
+	secretLister     corev1listers.SecretLister
 }
 
 // Check that our Reconciler implements Interface
@@ -77,7 +94,15 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSou
 	}
 	src.Status.MarkSink(sinkURI)
 
-	return newReconciledNormal(src.Namespace, src.Name)
+	// Reconcile Deployment
+	ra, err := r.reconcileDeployment(ctx, src)
+	if err != nil {
+		logging.FromContext(ctx).Desugar().Error("Failed to reconcile Deployment", zap.Error(err))
+		return err
+	}
+	src.Status.PropagateDeploymentAvailability(ra)
+
+	return nil
 }
 
 // checkConnection checks the secret, credentials, database and collection existance.
@@ -147,6 +172,89 @@ func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSourc
 	}
 
 	return r.sinkResolver.URIFromDestinationV1(*dest, src)
+}
+
+// // ReconcileDeployment checks if the images  and creates the receiveAdapter
+func (r *Reconciler) reconcileDeployment(ctx context.Context, src *v1alpha1.MongoDbSource) (*appsv1.Deployment, error) {
+	eventSource, err := r.makeEventSource(ctx, src)
+	args := &resources.ReceiveAdapterArgs{
+		Image:       r.receiveAdapterImage,
+		Labels:      resources.Labels(src.Name),
+		Source:      src,
+		EventSource: eventSource,
+	}
+	expected := resources.MakeReceiveAdapter(args)
+	ra, err := r.deploymentLister.Deployments(expected.Namespace).Get(expected.Name)
+	if apierrors.IsNotFound(err) {
+		ra, err = r.kubeClientSet.AppsV1().Deployments(expected.Namespace).Create(expected)
+		if err != nil {
+			return nil, err
+		}
+		return ra, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("error getting receive adapter %q: %v", expected.Name, err)
+	} else if !metav1.IsControlledBy(ra, src.GetObjectMeta()) {
+		return nil, fmt.Errorf("deployment %q is not owned by %s %q",
+			ra.Name, src.GetGroupVersionKind().Kind, src.GetObjectMeta().GetName())
+	} else if r.podSpecImageSync(expected.Spec.Template.Spec, ra.Spec.Template.Spec) {
+		if ra, err = r.kubeClientSet.AppsV1().Deployments(expected.Namespace).Update(ra); err != nil {
+			return ra, err
+		}
+		return ra, nil
+	} else {
+		logging.FromContext(ctx).Debugw("Reusing existing receive adapter", zap.Any("receiveAdapter", ra))
+	}
+	return ra, nil
+}
+
+// Returns false if an update is needed.
+func (r *Reconciler) podSpecImageSync(expected corev1.PodSpec, now corev1.PodSpec) bool {
+	// got needs all of the containers that want as, but it is allowed to have more.
+	dirty := false
+	for _, ec := range expected.Containers {
+		n, nc := getContainer(ec.Name, now)
+		if nc == nil {
+			now.Containers = append(now.Containers, ec)
+			dirty = true
+			continue
+		}
+		if nc.Image != ec.Image {
+			now.Containers[n].Image = ec.Image
+			dirty = true
+		}
+	}
+	return dirty
+}
+
+// getContainer gets a container by name
+func getContainer(name string, spec corev1.PodSpec) (int, *corev1.Container) {
+	for i, c := range spec.Containers {
+		if c.Name == name {
+			return i, &c
+		}
+	}
+	return -1, nil
+}
+
+// MakeEventSource computes the Cloud Event source attribute for the given source
+func (r *Reconciler) makeEventSource(ctx context.Context, src *v1alpha1.MongoDbSource) (string, error) {
+	secret, err := r.secretLister.Secrets(src.Namespace).Get(src.Spec.Secret.Name)
+	if err != nil {
+		logging.FromContext(ctx).Error("Unable to read MongoDb credentials secret", zap.Error(err))
+		return "", err
+	}
+	rawURI, ok := secret.Data["URI"]
+	if !ok {
+		logging.FromContext(ctx).Error("Unable to get MongoDb URI field", zap.Any("secretName", secret.Name), zap.Any("secretNamespace", secret.Namespace))
+		return "", err
+	}
+
+	url, err := url.Parse(string(rawURI))
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s/%s", url.Hostname(), src.Spec.Database), nil
 }
 
 // Helper function: finds if string exists in array of strings.

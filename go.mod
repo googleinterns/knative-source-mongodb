@@ -22,7 +22,12 @@ require (
 	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
 	k8s.io/api v0.18.1
 	k8s.io/apimachinery v0.18.1
+	github.com/cloudevents/sdk-go/v2 v2.0.1-0.20200630063327-b91da81265fe
+	go.uber.org/zap v1.14.1
+	k8s.io/api v0.17.6
+	k8s.io/apimachinery v0.17.6
 	k8s.io/client-go v11.0.1-0.20190805182717-6502b5e7b1b5+incompatible
+	knative.dev/eventing v0.16.1
 	knative.dev/pkg v0.0.0-20200702222342-ea4d6e985ba0
 	knative.dev/test-infra v0.0.0-20200630141629-15f40fe97047
 )
