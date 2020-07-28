@@ -16,6 +16,13 @@ limitations under the License.
 
 package main
 
-func main() {
+import (
+	"knative.dev/eventing/pkg/adapter/v2"
 
+	mongodbadapter "github.com/googleinterns/knative-source-mongodb/pkg/adapter"
+)
+
+func main() {
+	adapter.Main("mongodbsource", mongodbadapter.NewEnvConfig, mongodbadapter.NewAdapter)
 }
+

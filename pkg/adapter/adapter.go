@@ -15,3 +15,33 @@ limitations under the License.
 */
 
 package adapter
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"knative.dev/eventing/pkg/adapter/v2"
+)
+
+type envConfig struct {
+	adapter.EnvConfig
+
+	MongoDbCredentialsPath string `envconfig:"MONGODB_CREDENTIALS" required:"true"`
+	Database               string `envconfig:"MONGODB_DATABASE" required:"true"`
+	Collection             string `envconfig:"MONGODB_COLLECTION" required:"false"`
+}
+
+// NewEnvConfig creates an empty configuration
+func NewEnvConfig() adapter.EnvConfigAccessor {
+	return &envConfig{}
+}
+
+// NewAdapter creates an adapter to convert incoming MongoDb changes events to CloudEvents and
+// then sends them to the specified Sink
+func NewAdapter(ctx context.Context, processed adapter.EnvConfigAccessor, ceClient cloudevents.Client) adapter.Adapter {
+	fmt.Printf("Hey from mongodb adapter")
+	time.Sleep(600 * time.Second)
+	return nil
+}

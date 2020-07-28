@@ -18,11 +18,15 @@ package mongodbsource
 
 import (
 	context "context"
+	"os"
+
+	deploymentinformer "knative.dev/pkg/client/injection/kube/informers/apps/v1/deployment"
 
 	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/informers/sources/v1alpha1/mongodbsource"
 	v1alpha1mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
 	"k8s.io/client-go/tools/cache"
+	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
 	configmap "knative.dev/pkg/configmap"
 	controller "knative.dev/pkg/controller"
@@ -38,11 +42,21 @@ func NewController(
 	logger := logging.FromContext(ctx)
 
 	// Setup Event informers.
+	deploymentInformer := deploymentinformer.Get(ctx)
 	mongodbsourceInformer := mongodbsource.Get(ctx)
 	secretInformer := secretinformer.Get(ctx)
 
+	raImage, defined := os.LookupEnv(raImageEnvVar)
+	if !defined {
+		logging.FromContext(ctx).Errorf("required environment variable %q not defined", raImageEnvVar)
+		return nil
+	}
+
 	r := &Reconciler{
-		secretLister: secretInformer.Lister(),
+		receiveAdapterImage: raImage,
+		kubeClientSet:       kubeclient.Get(ctx),
+		secretLister:        secretInformer.Lister(),
+		deploymentLister:    deploymentInformer.Lister(),
 	}
 	impl := v1alpha1mongodbsource.NewImpl(ctx, r)
 
@@ -55,6 +69,9 @@ func NewController(
 		FilterFunc: controller.FilterGroupKind(v1alpha1.Kind("MongoDbSource")),
 		Handler:    controller.HandleAll(impl.EnqueueControllerOf),
 	})
-
+	deploymentInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: controller.FilterGroupKind(v1alpha1.Kind("MongoDbSource")),
+		Handler:    controller.HandleAll(impl.EnqueueControllerOf),
+	})
 	return impl
 }
