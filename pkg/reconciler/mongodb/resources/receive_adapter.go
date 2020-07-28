@@ -112,13 +112,19 @@ func makeEnv(eventSource string, spec *v1alpha1.MongoDbSourceSpec) []corev1.EnvV
 		Name:  "METRICS_DOMAIN",
 		Value: "sources.google.com",
 	}, {
-		Name:  "DATABASE",
+		Name:  "K_METRICS_CONFIG",
+		Value: "",
+	}, {
+		Name:  "K_LOGGING_CONFIG",
+		Value: "",
+	}, {
+		Name:  "MONGODB_DATABASE",
 		Value: spec.Database,
 	}, {
-		Name:  "COLLECTION",
+		Name:  "MONGODB_COLLECTION",
 		Value: spec.Collection,
 	}, {
-		Name:  "CREDENTIALS",
+		Name:  "MONGODB_CREDENTIALS",
 		Value: "/etc/mongodb-credentials",
 	},
 	}
