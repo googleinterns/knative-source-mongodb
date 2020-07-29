@@ -18,15 +18,27 @@ package mongodbsource
 
 import (
 	context "context"
+	"os"
+
+	deploymentinformer "knative.dev/pkg/client/injection/kube/informers/apps/v1/deployment"
 
 	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/informers/sources/v1alpha1/mongodbsource"
 	v1alpha1mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
 	"k8s.io/client-go/tools/cache"
+	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
 	configmap "knative.dev/pkg/configmap"
 	controller "knative.dev/pkg/controller"
 	logging "knative.dev/pkg/logging"
+	"knative.dev/pkg/resolver"
+)
+
+// Declare Constants
+const (
+	// raImageEnvVar is the name of the environment variable that contains the receive adapter's
+	// image. It must be defined.
+	raImageEnvVar = "MONGODB_RA_IMAGE"
 )
 
 // NewController creates a Reconciler for MongoDbSource and returns the result of NewImpl.
@@ -37,21 +49,38 @@ func NewController(
 	logger := logging.FromContext(ctx)
 
 	// Setup Event informers.
+	deploymentInformer := deploymentinformer.Get(ctx)
 	mongodbsourceInformer := mongodbsource.Get(ctx)
 	secretInformer := secretinformer.Get(ctx)
 
+	raImage, defined := os.LookupEnv(raImageEnvVar)
+	if !defined {
+		logging.FromContext(ctx).Errorf("required environment variable %q not defined", raImageEnvVar)
+		return nil
+	}
+
 	r := &Reconciler{
-		secretLister: secretInformer.Lister(),
+		receiveAdapterImage: raImage,
+		kubeClientSet:       kubeclient.Get(ctx),
+		secretLister:        secretInformer.Lister(),
+		deploymentLister:    deploymentInformer.Lister(),
 	}
 	impl := v1alpha1mongodbsource.NewImpl(ctx, r)
+
+	r.sinkResolver = resolver.NewURIResolver(ctx, impl.EnqueueKey)
+
+	mongoGK := v1alpha1.Kind("MongoDbSource")
 
 	// Set up the event handlers.
 	logger.Info("Setting up event handlers.")
 	mongodbsourceInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
 	secretInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: controller.FilterGroupKind(v1alpha1.Kind("MongoDbSource")),
+		FilterFunc: controller.FilterControllerGK(mongoGK),
 		Handler:    controller.HandleAll(impl.EnqueueControllerOf),
 	})
-
+	deploymentInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: controller.FilterControllerGK(mongoGK),
+		Handler:    controller.HandleAll(impl.EnqueueControllerOf),
+	})
 	return impl
 }
