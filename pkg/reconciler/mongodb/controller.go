@@ -34,6 +34,13 @@ import (
 	"knative.dev/pkg/resolver"
 )
 
+// Declare Constants
+const (
+	// raImageEnvVar is the name of the environment variable that contains the receive adapter's
+	// image. It must be defined.
+	raImageEnvVar = "MONGODB_RA_IMAGE"
+)
+
 // NewController creates a Reconciler for MongoDbSource and returns the result of NewImpl.
 func NewController(
 	ctx context.Context,
@@ -62,15 +69,17 @@ func NewController(
 
 	r.sinkResolver = resolver.NewURIResolver(ctx, impl.EnqueueKey)
 
+	mongoGK := v1alpha1.Kind("MongoDbSource")
+
 	// Set up the event handlers.
 	logger.Info("Setting up event handlers.")
 	mongodbsourceInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
 	secretInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: controller.FilterGroupKind(v1alpha1.Kind("MongoDbSource")),
+		FilterFunc: controller.FilterControllerGK(mongoGK),
 		Handler:    controller.HandleAll(impl.EnqueueControllerOf),
 	})
 	deploymentInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: controller.FilterGroupKind(v1alpha1.Kind("MongoDbSource")),
+		FilterFunc: controller.FilterControllerGK(mongoGK),
 		Handler:    controller.HandleAll(impl.EnqueueControllerOf),
 	})
 	return impl

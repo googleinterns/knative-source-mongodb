@@ -22,7 +22,7 @@ const (
 	controllerAgentName = "controller"
 )
 
-// Labels provides the Labels needed by the reconciler
+// Labels provides the Labels needed by the reconciler.
 func Labels(name string) map[string]string {
 	return map[string]string{
 		"google-source":      controllerAgentName,

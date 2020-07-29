@@ -27,7 +27,7 @@ import (
 	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 )
 
-// ReceiveAdapterArgs are the arguments needed to create a MongoDb Source Receive Adapter.
+// ReceiveAdapterArgs are the arguments needed to create a MongoDbSource Receive Adapter.
 // Every field is required.
 type ReceiveAdapterArgs struct {
 	Image       string
