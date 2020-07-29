@@ -18,15 +18,14 @@ package mongodbsource
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 
 	"go.uber.org/zap"
 	"knative.dev/pkg/logging"
 
-	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
-	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
+	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
+	"github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
 	"github.com/googleinterns/knative-source-mongodb/pkg/reconciler/mongodb/resources"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -40,23 +39,9 @@ import (
 	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"knative.dev/pkg/apis"
-	reconciler "knative.dev/pkg/reconciler"
+	"knative.dev/pkg/reconciler"
 	"knative.dev/pkg/resolver"
 )
-
-// Declare Constants
-const (
-	// raImageEnvVar is the name of the environment variable that contains the receive adapter's
-	// image. It must be defined.
-	raImageEnvVar = "MONGODB_RA_IMAGE"
-)
-
-// newReconciledNormal makes a new reconciler event with event type Normal, and
-// reason MongoDbSourceReconciled.
-func newReconciledNormal(namespace, name string) reconciler.Event {
-	return reconciler.NewEvent(corev1.EventTypeNormal, "MongoDbSourceReconciled", "MongoDbSource reconciled: \"%s/%s\"", namespace, name)
-
-}
 
 // Reconciler implements controller.Reconciler for MongoDbSource resources.
 type Reconciler struct {
@@ -72,13 +57,14 @@ type Reconciler struct {
 // Check that our Reconciler implements Interface
 var _ mongodbsource.Interface = (*Reconciler)(nil)
 
-// ReconcileKind implements Interface.ReconcileKind. Reconciles based on secret, credentials,
-// database & collection presence, sink resolvability and creates corresponding receive adapter.
+// ReconcileKind implements Interface.ReconcileKind.
 func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSource) reconciler.Event {
-	src.Status.InitializeConditions()
-	src.Status.ObservedGeneration = src.Generation
+	// Steps:
+	// 1. Ensure it can connect to the DB with the specified credentials, and that the DB and collection exists.
+	// 2. Resolve the sink.
+	// 3. Reconcile the receive adapter.
 
-	// Check the secret, credentials, database and collection existance.
+	// Check that we can connect to the DB.
 	err := r.checkConnection(ctx, src)
 	if err != nil {
 		src.Status.MarkConnectionFailed(err)
@@ -86,7 +72,7 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSou
 	}
 	src.Status.MarkConnectionSuccess()
 
-	// Check the resolvability of the specified sink
+	// Resolve the specified sink.
 	sinkURI, err := r.resolveSink(ctx, src)
 	if err != nil {
 		src.Status.MarkNoSink("NotFound", "")
@@ -94,8 +80,8 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSou
 	}
 	src.Status.MarkSink(sinkURI)
 
-	// Reconcile Deployment
-	ra, err := r.reconcileDeployment(ctx, src)
+	// Reconcile the receive adapter.
+	ra, err := r.reconcileReceiveAdapter(ctx, src)
 	if err != nil {
 		logging.FromContext(ctx).Desugar().Error("Failed to reconcile Deployment", zap.Error(err))
 		return err
@@ -105,7 +91,7 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSou
 	return nil
 }
 
-// checkConnection checks the secret, credentials, database and collection existance.
+// checkConnection checks the secret, credentials, database and collection existence.
 func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbSource) reconciler.Event {
 	// Try to connect to the database and see if it works.
 	secret, err := r.secretLister.Secrets(src.Namespace).Get(src.Spec.Secret.Name)
@@ -115,7 +101,7 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 	}
 	rawURI, ok := secret.Data["URI"]
 	if !ok {
-		logging.FromContext(ctx).Desugar().Error("Unable to get MongoDb URI field", zap.Any("secretName", secret.Name), zap.Any("secretNamespace", secret.Namespace))
+		logging.FromContext(ctx).Desugar().Error("Unable to get MongoDb URI field", zap.Any("secret", secret.Name))
 		return err
 	}
 	URI := string(rawURI)
@@ -123,12 +109,12 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 	// Connect to the MongoDb replica-set.
 	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
 	if err != nil {
-		logging.FromContext(ctx).Desugar().Error("Couldn't connect to database", zap.Error(err))
+		logging.FromContext(ctx).Desugar().Error("Error creating mongo client", zap.Error(err))
 		return err
 	}
 	err = client.Connect(ctx)
 	if err != nil {
-		logging.FromContext(ctx).Desugar().Error("Couldn't connect to database", zap.Error(err))
+		logging.FromContext(ctx).Desugar().Error("Error connecting to database", zap.Error(err))
 		return err
 	}
 	defer client.Disconnect(ctx)
@@ -136,12 +122,12 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 	// See if database exists in available databases.
 	databases, err := client.ListDatabaseNames(ctx, bson.M{})
 	if err != nil {
-		logging.FromContext(ctx).Error("Couldn't look up existing databases", zap.Error(err))
+		logging.FromContext(ctx).Desugar().Error("Error listing databases", zap.Error(err))
 		return err
 	}
 	if !stringInSlice(src.Spec.Database, databases) {
-		err = errors.New("Couldn't find database name in available databases")
-		logging.FromContext(ctx).Error("Couldn't find database in available database", zap.Any("database", src.Spec.Database), zap.Any("availableDatabases", fmt.Sprint(databases)), zap.Error(err))
+		err = fmt.Errorf("database %q not available in existing databases", src.Spec.Database)
+		logging.FromContext(ctx).Desugar().Error("Database not available in existing databases", zap.Any("database", src.Spec.Database), zap.Any("availableDatabases", fmt.Sprint(databases)), zap.Error(err))
 		return err
 	}
 
@@ -149,12 +135,12 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 	if src.Spec.Collection != "" {
 		collections, err := client.Database(src.Spec.Database).ListCollectionNames(ctx, bson.M{})
 		if err != nil {
-			logging.FromContext(ctx).Error("Couldn't look up existing collections", zap.Error(err))
+			logging.FromContext(ctx).Desugar().Error("Error listing collections", zap.Error(err))
 			return err
 		}
 		if !stringInSlice(src.Spec.Collection, collections) {
-			err = errors.New("Couldn't find collection name in available collections")
-			logging.FromContext(ctx).Error("Couldn't find collection in available collections", zap.Any("collection", src.Spec.Collection), zap.Any("availableCollections", fmt.Sprint(collections)), zap.Error(err))
+			err = fmt.Errorf("collection %q not available in existing collections", src.Spec.Collection)
+			logging.FromContext(ctx).Desugar().Error("Collection not available in existing collections", zap.Any("collection", src.Spec.Collection), zap.Any("availableCollections", fmt.Sprint(collections)), zap.Error(err))
 			return err
 		}
 	}
@@ -162,7 +148,7 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 	return nil
 }
 
-// checkSink checks the resolvability of the specified sink
+// resolveSink checks the resolvability of the specified sink.
 func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSource) (*apis.URL, error) {
 	dest := src.Spec.Sink.DeepCopy()
 	if dest.Ref != nil {
@@ -174,8 +160,8 @@ func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSourc
 	return r.sinkResolver.URIFromDestinationV1(*dest, src)
 }
 
-// // ReconcileDeployment checks if the images  and creates the receiveAdapter
-func (r *Reconciler) reconcileDeployment(ctx context.Context, src *v1alpha1.MongoDbSource) (*appsv1.Deployment, error) {
+// reconcileReceiveAdapter reconciles the Receive Adapter Deployment.
+func (r *Reconciler) reconcileReceiveAdapter(ctx context.Context, src *v1alpha1.MongoDbSource) (*appsv1.Deployment, error) {
 	eventSource, err := r.makeEventSource(ctx, src)
 	args := &resources.ReceiveAdapterArgs{
 		Image:       r.receiveAdapterImage,
@@ -202,7 +188,7 @@ func (r *Reconciler) reconcileDeployment(ctx context.Context, src *v1alpha1.Mong
 		}
 		return ra, nil
 	} else {
-		logging.FromContext(ctx).Debugw("Reusing existing receive adapter", zap.Any("receiveAdapter", ra))
+		logging.FromContext(ctx).Desugar().Debug("Reusing existing receive adapter", zap.Any("receiveAdapter", ra))
 	}
 	return ra, nil
 }

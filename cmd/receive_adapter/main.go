@@ -25,4 +25,3 @@ import (
 func main() {
 	adapter.Main("mongodbsource", mongodbadapter.NewEnvConfig, mongodbadapter.NewAdapter)
 }
-
