@@ -170,7 +170,6 @@ func (r *Reconciler) reconcileReceiveAdapter(ctx context.Context, src *v1alpha1.
 		EventSource: eventSource,
 		SinkURL:     src.Status.SinkURI.String(),
 	}
-	logging.FromContext(ctx).Desugar().Info("selim", zap.Any("sinkURI", src.Status.SinkURI.String()))
 	expected := resources.MakeReceiveAdapter(args)
 	ra, err := r.deploymentLister.Deployments(expected.Namespace).Get(expected.Name)
 	if apierrors.IsNotFound(err) {
