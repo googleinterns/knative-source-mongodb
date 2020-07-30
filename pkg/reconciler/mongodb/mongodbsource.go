@@ -168,7 +168,9 @@ func (r *Reconciler) reconcileReceiveAdapter(ctx context.Context, src *v1alpha1.
 		Labels:      resources.Labels(src.Name),
 		Source:      src,
 		EventSource: eventSource,
+		SinkURL:     src.Status.SinkURI.String(),
 	}
+	logging.FromContext(ctx).Desugar().Info("selim", zap.Any("sinkURI", src.Status.SinkURI.String()))
 	expected := resources.MakeReceiveAdapter(args)
 	ra, err := r.deploymentLister.Deployments(expected.Namespace).Get(expected.Name)
 	if apierrors.IsNotFound(err) {
@@ -212,7 +214,7 @@ func (r *Reconciler) podSpecImageSync(expected corev1.PodSpec, now corev1.PodSpe
 	return dirty
 }
 
-// getContainer gets a container by name
+// getContainer gets a container by name.
 func getContainer(name string, spec corev1.PodSpec) (int, *corev1.Container) {
 	for i, c := range spec.Containers {
 		if c.Name == name {

@@ -40,13 +40,18 @@ type envConfig struct {
 }
 
 type mongoDbAdapter struct {
-	namespace string
-	ce        cloudevents.Client
-	client    *mongo.Client
-	source    string
-	db        *mongo.Database
-	coll      *mongo.Collection
-	sinkurl   string
+	namespace  string
+	ce         cloudevents.Client
+	client     *mongo.Client
+	source     string
+	datasource *dataSource
+	sinkurl    string
+	logger     *zap.SugaredLogger
+}
+
+// dataSource interface to interact with either a database or a collection.
+type dataSource interface {
+	Watch(ctx context.Context, pipeline interface{}, opts ...*options.ChangeStreamOptions) (*mongo.ChangeStream, error)
 }
 
 // NewEnvConfig creates an empty environement variables configuration.
@@ -57,38 +62,51 @@ func NewEnvConfig() adapter.EnvConfigAccessor {
 // NewAdapter creates an adapter to convert incoming MongoDb changes events to CloudEvents and
 // then sends them to the specified Sink.
 func NewAdapter(ctx context.Context, processed adapter.EnvConfigAccessor, ceClient cloudevents.Client) adapter.Adapter {
+	logger := logging.FromContext(ctx)
 	env := processed.(*envConfig)
 
 	rawURI, err := ioutil.ReadFile(env.MongoDbCredentialsPath + "/URI")
 	if err != nil {
-		logging.FromContext(ctx).Desugar().Error("Unable to get MongoDb URI field", zap.Any("secretPath", env.MongoDbCredentialsPath+"/URI"))
+		logger.Desugar().Error("Unable to get MongoDb URI field", zap.Any("secretPath", env.MongoDbCredentialsPath+"/URI"))
 	}
 	URI := string(rawURI)
+	if URI == "" {
+		logger.Desugar().Error("MongoDb URI field is an empty string", zap.Any("URI", URI))
+	}
 
 	return newAdapter(ctx, env, ceClient, URI)
 }
 
 func newAdapter(ctx context.Context, env *envConfig, ceClient cloudevents.Client, URI string) adapter.Adapter {
+	logger := logging.FromContext(ctx)
+
 	// Create new Client.
 	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
 	if err != nil {
-		logging.FromContext(ctx).Desugar().Error("Error creating mongo client", zap.Error(err))
+		logger.Desugar().Error("Error creating mongo client", zap.Error(err))
 	}
-
-	var collection *mongo.Collection = nil
-	if env.Collection != "" {
-		collection = client.Database(env.Database).Collection(env.Collection)
-	}
+	// Get dataSource
+	dataSource := getDataSource(client, env.Database, env.Collection)
 
 	return &mongoDbAdapter{
-		namespace: env.Namespace,
-		ce:        ceClient,
-		client:    client,
-		db:        client.Database(env.Database),
-		coll:      collection,
-		source:    env.EventSource,
-		sinkurl:   env.SinkURL,
+		namespace:  env.Namespace,
+		ce:         ceClient,
+		client:     client,
+		datasource: dataSource,
+		source:     env.EventSource,
+		sinkurl:    env.SinkURL,
+		logger:     logger,
 	}
+}
+
+// Returns the appropriate dataSource: database or collection.
+func getDataSource(client *mongo.Client, db string, coll string) *dataSource {
+	if coll != "" {
+		var collsource dataSource = client.Database(db).Collection(coll)
+		return &collsource
+	}
+	var dbsource dataSource = client.Database(db)
+	return &dbsource
 }
 
 // Start creates the watch stream that will watch for dataSource changes.
@@ -96,49 +114,54 @@ func (a *mongoDbAdapter) Start(ctx context.Context) error {
 	// Connect to Client.
 	err := a.client.Connect(ctx)
 	if err != nil {
-		logging.FromContext(ctx).Desugar().Error("Error connecting to database", zap.Error(err))
+		a.logger.Desugar().Error("Error connecting to database", zap.Error(err))
+		return err
 	}
 	defer a.client.Disconnect(ctx)
 
 	// Create a watch stream for either the database or collection.
-	var stream *mongo.ChangeStream = nil
-	if a.coll != nil {
-		stream, err = a.coll.Watch(ctx, mongo.Pipeline{})
-	} else {
-		stream, err = a.db.Watch(ctx, mongo.Pipeline{})
-	}
+	var datasource dataSource = *a.datasource
+	stream, err := datasource.Watch(ctx, mongo.Pipeline{})
+
 	if err != nil {
+		a.logger.Desugar().Error("Error setting up changeStream", zap.Error(err))
 		return err
 	}
 	defer stream.Close(ctx)
 
 	// Watch and process changes.
-	a.processChanges(ctx, stream)
+	err = a.processChanges(ctx, stream)
+	if err != nil {
+		a.logger.Desugar().Error("Error watching and processing changes", zap.Error(err))
+		return err
+	}
 	return nil
 }
 
 // processChanges processes the new incoming change, creates a cloud event and sends it.
-func (a *mongoDbAdapter) processChanges(ctx context.Context, stream *mongo.ChangeStream) {
+func (a *mongoDbAdapter) processChanges(ctx context.Context, stream *mongo.ChangeStream) error {
 	// For each new change recorded.
 	for stream.Next(ctx) {
 		var data bson.M
 		if err := stream.Decode(&data); err != nil {
-			panic(err)
+			a.logger.Desugar().Error("Error decoding the change stream", zap.Error(err))
 		}
 		// Create corresponding event.
 		event, err := makeCloudEvent(data)
 		if err != nil {
-			logging.FromContext(ctx).Desugar().Error("Failed to create event", zap.Error(err))
+			a.logger.Desugar().Error("Failed to create event", zap.Error(err))
 		}
 
 		// Send event using client.
 		ctx := cloudevents.ContextWithTarget(ctx, a.sinkurl)
+		a.logger.Desugar().Info("", zap.Any("sinkurl", a.sinkurl))
 
 		// Send that Event.
 		if result := a.ce.Send(ctx, *event); cloudevents.IsUndelivered(result) {
-			logging.FromContext(ctx).Desugar().Error("Failed to send event")
+			a.logger.Desugar().Error("Failed to send event", zap.Any("result", result))
 		}
 	}
+	return nil
 }
 
 // makeCloudEvent makes a cloud event out of the change object recevied.
@@ -148,7 +171,7 @@ func makeCloudEvent(data bson.M) (*cloudevents.Event, error) {
 
 	// Set cloud event specs and attributes.
 	event.SetID(data["_id"].(bson.M)["_data"].(string))
-	event.SetSource(data["ns"].(bson.M)["db"].(string))
+	event.SetSource(data["ns"].(bson.M)["db"].(string) + "/" + data["ns"].(bson.M)["coll"].(string))
 	event.SetType(data["operationType"].(string))
 
 	// Add payload if replace or insert, else add document key.

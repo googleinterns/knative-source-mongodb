@@ -34,6 +34,7 @@ type ReceiveAdapterArgs struct {
 	Labels      map[string]string
 	Source      *v1alpha1.MongoDbSource
 	EventSource string
+	SinkURL     string
 }
 
 // MakeReceiveAdapter generates (but does not insert into K8s) the Receive Adapter Deployment for
@@ -64,7 +65,7 @@ func MakeReceiveAdapter(args *ReceiveAdapterArgs) *v1.Deployment {
 						{
 							Name:  "receive-adapter",
 							Image: args.Image,
-							Env:   makeEnv(args.EventSource, &args.Source.Spec),
+							Env:   makeEnv(args.EventSource, args.SinkURL, &args.Source.Spec),
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "mongodb-credentials",
@@ -90,7 +91,7 @@ func MakeReceiveAdapter(args *ReceiveAdapterArgs) *v1.Deployment {
 	}
 }
 
-func makeEnv(eventSource string, spec *v1alpha1.MongoDbSourceSpec) []corev1.EnvVar {
+func makeEnv(eventSource string, sinkURI string, spec *v1alpha1.MongoDbSourceSpec) []corev1.EnvVar {
 	return []corev1.EnvVar{{
 		Name:  "EVENT_SOURCE",
 		Value: eventSource,
@@ -108,6 +109,9 @@ func makeEnv(eventSource string, spec *v1alpha1.MongoDbSourceSpec) []corev1.EnvV
 				FieldPath: "metadata.name",
 			},
 		},
+	}, {
+		Name:  "K_SINK",
+		Value: sinkURI,
 	}, {
 		Name:  "METRICS_DOMAIN",
 		Value: "sources.google.com",
