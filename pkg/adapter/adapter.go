@@ -18,6 +18,7 @@ package adapter
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
@@ -40,16 +41,17 @@ type envConfig struct {
 }
 
 type mongoDbAdapter struct {
-	namespace  string
-	ce         cloudevents.Client
-	client     *mongo.Client
-	source     string
-	datasource *dataSource
-	sinkurl    string
-	logger     *zap.SugaredLogger
+	namespace       string
+	ce              cloudevents.Client
+	source          string
+	database        string
+	collection      string
+	credentialspath string
+	sinkurl         string
+	logger          *zap.SugaredLogger
 }
 
-// dataSource interface to interact with either a database or a collection.
+// dataSource interface to interact with either a mongo.database or a mongo.collection.
 type dataSource interface {
 	Watch(ctx context.Context, pipeline interface{}, opts ...*options.ChangeStreamOptions) (*mongo.ChangeStream, error)
 }
@@ -65,81 +67,67 @@ func NewAdapter(ctx context.Context, processed adapter.EnvConfigAccessor, ceClie
 	logger := logging.FromContext(ctx)
 	env := processed.(*envConfig)
 
-	rawURI, err := ioutil.ReadFile(env.MongoDbCredentialsPath + "/URI")
+	return &mongoDbAdapter{
+		namespace:       env.Namespace,
+		ce:              ceClient,
+		source:          env.EventSource,
+		database:        env.Database,
+		collection:      env.Collection,
+		credentialspath: env.MongoDbCredentialsPath,
+		sinkurl:         env.SinkURL,
+		logger:          logger,
+	}
+}
+
+// Start connects to the database and creates the watch stream that will watch for dataSource changes.
+func (a *mongoDbAdapter) Start(ctx context.Context) error {
+	// Read the Credentials.
+	rawURI, err := ioutil.ReadFile(a.credentialspath + "/URI")
 	if err != nil {
-		logger.Desugar().Error("Unable to get MongoDb URI field", zap.Any("secretPath", env.MongoDbCredentialsPath+"/URI"))
+		return fmt.Errorf("Unable to get MongoDb URI field: secretPath %s : %w", a.credentialspath+"/URI", err)
 	}
 	URI := string(rawURI)
 	if URI == "" {
-		logger.Desugar().Error("MongoDb URI field is an empty string", zap.Any("URI", URI))
+		return fmt.Errorf("MongoDb URI field is an empty string: URI %s : %w", URI, err)
 	}
-
-	return newAdapter(ctx, env, ceClient, URI)
-}
-
-func newAdapter(ctx context.Context, env *envConfig, ceClient cloudevents.Client, URI string) adapter.Adapter {
-	logger := logging.FromContext(ctx)
 
 	// Create new Client.
 	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
 	if err != nil {
-		logger.Desugar().Error("Error creating mongo client", zap.Error(err))
+		return fmt.Errorf("Error creating mongo client: %w", err)
 	}
 	// Get dataSource
-	dataSource := getDataSource(client, env.Database, env.Collection)
+	dataSource := getDataSource(client, a.database, a.collection)
 
-	return &mongoDbAdapter{
-		namespace:  env.Namespace,
-		ce:         ceClient,
-		client:     client,
-		datasource: dataSource,
-		source:     env.EventSource,
-		sinkurl:    env.SinkURL,
-		logger:     logger,
-	}
-}
-
-// Returns the appropriate dataSource: database or collection.
-func getDataSource(client *mongo.Client, db string, coll string) *dataSource {
-	if coll != "" {
-		var collsource dataSource = client.Database(db).Collection(coll)
-		return &collsource
-	}
-	var dbsource dataSource = client.Database(db)
-	return &dbsource
-}
-
-// Start creates the watch stream that will watch for dataSource changes.
-func (a *mongoDbAdapter) Start(ctx context.Context) error {
 	// Connect to Client.
-	err := a.client.Connect(ctx)
+	err = client.Connect(ctx)
 	if err != nil {
-		a.logger.Desugar().Error("Error connecting to database", zap.Error(err))
-		return err
+		return fmt.Errorf("Error connecting to database: %s", err)
 	}
-	defer a.client.Disconnect(ctx)
+	defer client.Disconnect(ctx)
 
 	// Create a watch stream for either the database or collection.
-	var datasource dataSource = *a.datasource
-	stream, err := datasource.Watch(ctx, mongo.Pipeline{})
-
+	stream, err := dataSource.Watch(ctx, mongo.Pipeline{})
 	if err != nil {
-		a.logger.Desugar().Error("Error setting up changeStream", zap.Error(err))
-		return err
+		return fmt.Errorf("Error setting up changeStream: %s", err)
 	}
 	defer stream.Close(ctx)
 
 	// Watch and process changes.
-	err = a.processChanges(ctx, stream)
-	if err != nil {
-		a.logger.Desugar().Error("Error watching and processing changes", zap.Error(err))
-		return err
-	}
+	a.processChanges(ctx, stream)
 	return nil
 }
 
+// Returns the appropriate dataSource: database or collection.
+func getDataSource(client *mongo.Client, db string, coll string) dataSource {
+	if coll != "" {
+		return client.Database(db).Collection(coll)
+	}
+	return client.Database(db)
+}
+
 // processChanges processes the new incoming change, creates a cloud event and sends it.
-func (a *mongoDbAdapter) processChanges(ctx context.Context, stream *mongo.ChangeStream) error {
+func (a *mongoDbAdapter) processChanges(ctx context.Context, stream *mongo.ChangeStream) {
 	// For each new change recorded.
 	for stream.Next(ctx) {
 		var data bson.M
@@ -154,14 +142,13 @@ func (a *mongoDbAdapter) processChanges(ctx context.Context, stream *mongo.Chang
 
 		// Send event using client.
 		ctx := cloudevents.ContextWithTarget(ctx, a.sinkurl)
-		a.logger.Desugar().Info("", zap.Any("sinkurl", a.sinkurl))
 
 		// Send that Event.
 		if result := a.ce.Send(ctx, *event); cloudevents.IsUndelivered(result) {
 			a.logger.Desugar().Error("Failed to send event", zap.Any("result", result))
 		}
 	}
-	return nil
+	return
 }
 
 // makeCloudEvent makes a cloud event out of the change object recevied.
@@ -169,7 +156,12 @@ func makeCloudEvent(data bson.M) (*cloudevents.Event, error) {
 	// Create Event.
 	event := cloudevents.NewEvent(cloudevents.VersionV1)
 
-	// Set cloud event specs and attributes.
+	// Set cloud event specs and attributes. TODO: issue #43
+	// 		ID     -> id of mongo change object
+	// 		Source -> database/collection.
+	// 		Type   -> type of change either insert, delete or update.
+	//		Data   -> data payload containing either id only for
+	//                deletion or full object for other changes.
 	event.SetID(data["_id"].(bson.M)["_data"].(string))
 	event.SetSource(data["ns"].(bson.M)["db"].(string) + "/" + data["ns"].(bson.M)["coll"].(string))
 	event.SetType(data["operationType"].(string))
