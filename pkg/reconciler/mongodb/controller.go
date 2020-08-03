@@ -34,7 +34,7 @@ import (
 	"knative.dev/pkg/resolver"
 )
 
-// Declare Constants
+// Declare Constants.
 const (
 	// raImageEnvVar is the name of the environment variable that contains the receive adapter's
 	// image. It must be defined.
