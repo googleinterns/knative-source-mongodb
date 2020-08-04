@@ -17,12 +17,16 @@ limitations under the License.
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 
-	v1 "k8s.io/api/apps/v1"
+	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/eventing/pkg/adapter/v2"
+	reconcilersource "knative.dev/eventing/pkg/reconciler/source"
 	"knative.dev/pkg/kmeta"
+	"knative.dev/pkg/system"
 
 	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 )
@@ -35,12 +39,19 @@ type ReceiveAdapterArgs struct {
 	Source      *v1alpha1.MongoDbSource
 	EventSource string
 	SinkURL     string
+	Configs     reconcilersource.ConfigAccessor
 }
 
 // MakeReceiveAdapter generates (but does not insert into K8s) the Receive Adapter Deployment for
 // MongoDb sources.
-func MakeReceiveAdapter(args *ReceiveAdapterArgs) *v1.Deployment {
+func MakeReceiveAdapter(args *ReceiveAdapterArgs) (*v1.Deployment, error) {
 	replicas := int32(1)
+
+	env, err := makeEnv(args)
+	if err != nil {
+		return nil, fmt.Errorf("error generating env vars: %w", err)
+	}
+
 	return &v1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: args.Source.Namespace,
@@ -65,7 +76,7 @@ func MakeReceiveAdapter(args *ReceiveAdapterArgs) *v1.Deployment {
 						{
 							Name:  "receive-adapter",
 							Image: args.Image,
-							Env:   makeEnv(args.EventSource, args.SinkURL, &args.Source.Spec),
+							Env:   env,
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "mongodb-credentials",
@@ -88,48 +99,52 @@ func MakeReceiveAdapter(args *ReceiveAdapterArgs) *v1.Deployment {
 				},
 			},
 		},
-	}
+	}, nil
 }
 
-func makeEnv(eventSource string, sinkURI string, spec *v1alpha1.MongoDbSourceSpec) []corev1.EnvVar {
-	return []corev1.EnvVar{{
-		Name:  "EVENT_SOURCE",
-		Value: eventSource,
+func makeEnv(args *ReceiveAdapterArgs) ([]corev1.EnvVar, error) {
+	envs := []corev1.EnvVar{{
+		Name:  adapter.EnvConfigSink,
+		Value: args.SinkURL,
 	}, {
-		Name: "NAMESPACE",
+		Name:  "EVENT_SOURCE",
+		Value: args.EventSource,
+	}, {
+		Name:  "SYSTEM_NAMESPACE",
+		Value: system.Namespace(),
+	}, {
+		Name: adapter.EnvConfigNamespace,
 		ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: "metadata.namespace",
 			},
 		},
 	}, {
-		Name: "NAME",
-		ValueFrom: &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: "metadata.name",
-			},
-		},
-	}, {
-		Name:  "K_SINK",
-		Value: sinkURI,
+		Name:  adapter.EnvConfigName,
+		Value: args.Source.Name,
 	}, {
 		Name:  "METRICS_DOMAIN",
 		Value: "sources.google.com",
 	}, {
-		Name:  "K_METRICS_CONFIG",
-		Value: "",
-	}, {
-		Name:  "K_LOGGING_CONFIG",
-		Value: "",
-	}, {
 		Name:  "MONGODB_DATABASE",
-		Value: spec.Database,
+		Value: args.Source.Spec.Database,
 	}, {
 		Name:  "MONGODB_COLLECTION",
-		Value: spec.Collection,
+		Value: args.Source.Spec.Collection,
 	}, {
 		Name:  "MONGODB_CREDENTIALS",
 		Value: "/etc/mongodb-credentials",
-	},
+	}}
+
+	envs = append(envs, args.Configs.ToEnvVars()...)
+
+	if args.Source.Spec.CloudEventOverrides != nil && args.Source.Spec.CloudEventOverrides.Extensions != nil {
+		ceJson, err := json.Marshal(args.Source.Spec.CloudEventOverrides.Extensions)
+		if err != nil {
+			return nil, fmt.Errorf("Failure to marshal cloud event overrides %v: %v", args.Source.Spec.CloudEventOverrides.Extensions, err)
+		}
+		envs = append(envs, corev1.EnvVar{Name: adapter.EnvConfigCEOverrides, Value: string(ceJson)})
 	}
+	return envs, nil
+
 }

@@ -17,20 +17,21 @@ limitations under the License.
 package mongodbsource
 
 import (
-	context "context"
+	"context"
 	"os"
 
 	deploymentinformer "knative.dev/pkg/client/injection/kube/informers/apps/v1/deployment"
 
-	v1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
-	mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/informers/sources/v1alpha1/mongodbsource"
+	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
+	"github.com/googleinterns/knative-source-mongodb/pkg/client/injection/informers/sources/v1alpha1/mongodbsource"
 	v1alpha1mongodbsource "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
 	"k8s.io/client-go/tools/cache"
+	reconcilersource "knative.dev/eventing/pkg/reconciler/source"
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
-	configmap "knative.dev/pkg/configmap"
-	controller "knative.dev/pkg/controller"
-	logging "knative.dev/pkg/logging"
+	"knative.dev/pkg/configmap"
+	"knative.dev/pkg/controller"
+	"knative.dev/pkg/logging"
 	"knative.dev/pkg/resolver"
 )
 
@@ -39,6 +40,8 @@ const (
 	// raImageEnvVar is the name of the environment variable that contains the receive adapter's
 	// image. It must be defined.
 	raImageEnvVar = "MONGODB_RA_IMAGE"
+
+	component = "mongodbsource"
 )
 
 // NewController creates a Reconciler for MongoDbSource and returns the result of NewImpl.
@@ -64,6 +67,7 @@ func NewController(
 		kubeClientSet:       kubeclient.Get(ctx),
 		secretLister:        secretInformer.Lister(),
 		deploymentLister:    deploymentInformer.Lister(),
+		configs:             reconcilersource.WatchConfigurations(ctx, component, cmw),
 	}
 	impl := v1alpha1mongodbsource.NewImpl(ctx, r)
 
