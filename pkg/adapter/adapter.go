@@ -18,6 +18,7 @@ package adapter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 
@@ -41,11 +42,11 @@ type envConfig struct {
 
 type mongoDbAdapter struct {
 	namespace       string
-	ceclient        cloudevents.Client
-	source          string
+	ceClient        cloudevents.Client
+	ceSource        string
 	database        string
 	collection      string
-	credentialspath string
+	credentialsPath string
 	logger          *zap.SugaredLogger
 }
 
@@ -67,11 +68,11 @@ func NewAdapter(ctx context.Context, processed adapter.EnvConfigAccessor, ceClie
 
 	return &mongoDbAdapter{
 		namespace:       env.Namespace,
-		ceclient:        ceClient,
-		source:          env.EventSource,
+		ceClient:        ceClient,
+		ceSource:        env.EventSource,
 		database:        env.Database,
 		collection:      env.Collection,
-		credentialspath: env.MongoDbCredentialsPath,
+		credentialsPath: env.MongoDbCredentialsPath,
 		logger:          logger,
 	}
 }
@@ -79,19 +80,19 @@ func NewAdapter(ctx context.Context, processed adapter.EnvConfigAccessor, ceClie
 // Start connects to the database and creates the watch stream that will watch for dataSource changes.
 func (a *mongoDbAdapter) Start(ctx context.Context) error {
 	// Read the Credentials.
-	rawURI, err := ioutil.ReadFile(a.credentialspath + "/URI")
+	rawURI, err := ioutil.ReadFile(a.credentialsPath + "/URI")
 	if err != nil {
-		return fmt.Errorf("Unable to get MongoDb URI field: secretPath %s : %w", a.credentialspath+"/URI", err)
+		return fmt.Errorf("unable to get MongoDb URI field: secretPath %s/URI : %w", a.credentialsPath, err)
 	}
 	URI := string(rawURI)
 	if URI == "" {
-		return fmt.Errorf("MongoDb URI field is an empty string: URI %s : %w", URI, err)
+		return errors.New("MongoDb URI field is empty")
 	}
 
 	// Create new Client.
 	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
 	if err != nil {
-		return fmt.Errorf("Error creating mongo client: %w", err)
+		return fmt.Errorf("error creating mongo client: %w", err)
 	}
 
 	// Get dataSource: either a mongo.Collection or a mongo.Database.
@@ -105,14 +106,14 @@ func (a *mongoDbAdapter) Start(ctx context.Context) error {
 	// Connect to Client.
 	err = client.Connect(ctx)
 	if err != nil {
-		return fmt.Errorf("Error connecting to database: %w", err)
+		return fmt.Errorf("error connecting to database: %w", err)
 	}
 	defer client.Disconnect(ctx)
 
 	// Create a watch stream for either the database or collection.
 	stream, err := dataSource.Watch(ctx, mongo.Pipeline{})
 	if err != nil {
-		return fmt.Errorf("Error setting up changeStream: %w", err)
+		return fmt.Errorf("error setting up changeStream: %w", err)
 	}
 	defer stream.Close(ctx)
 
@@ -138,7 +139,7 @@ func (a *mongoDbAdapter) processChanges(ctx context.Context, stream *mongo.Chang
 		}
 
 		// Send that Event.
-		if result := a.ceclient.Send(ctx, *event); cloudevents.IsUndelivered(result) {
+		if result := a.ceClient.Send(ctx, *event); cloudevents.IsUndelivered(result) {
 			a.logger.Desugar().Error("Failed to send event", zap.Any("result", result))
 		}
 	}
@@ -157,7 +158,7 @@ func (a *mongoDbAdapter) makeCloudEvent(data bson.M) (*cloudevents.Event, error)
 	//		Data   -> data payload containing either id only for
 	//                deletion or full object for other changes.
 	event.SetID(data["_id"].(bson.M)["_data"].(string))
-	event.SetSource(a.source)
+	event.SetSource(a.ceSource)
 	// event.SetSource(data["ns"].(bson.M)["db"].(string) + "/" + data["ns"].(bson.M)["coll"].(string))
 	event.SetType(data["operationType"].(string))
 

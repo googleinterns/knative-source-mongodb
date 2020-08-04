@@ -34,9 +34,9 @@ type FakeMongoDbSources struct {
 	ns   string
 }
 
-var mongodbsourcesResource = schema.GroupVersionResource{Group: "sources", Version: "v1alpha1", Resource: "mongodbsources"}
+var mongodbsourcesResource = schema.GroupVersionResource{Group: "sources.google.com", Version: "v1alpha1", Resource: "mongodbsources"}
 
-var mongodbsourcesKind = schema.GroupVersionKind{Group: "sources", Version: "v1alpha1", Kind: "MongoDbSource"}
+var mongodbsourcesKind = schema.GroupVersionKind{Group: "sources.google.com", Version: "v1alpha1", Kind: "MongoDbSource"}
 
 // Get takes name of the mongoDbSource, and returns the corresponding mongoDbSource object, and an error if there is any.
 func (c *FakeMongoDbSources) Get(name string, options v1.GetOptions) (result *v1alpha1.MongoDbSource, err error) {

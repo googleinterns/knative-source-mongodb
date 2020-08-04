@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
+	reconcilersource "knative.dev/eventing/pkg/reconciler/source"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/reconciler"
 	"knative.dev/pkg/resolver"
@@ -52,6 +53,8 @@ type Reconciler struct {
 	// Lister
 	deploymentLister appsv1listers.DeploymentLister
 	secretLister     corev1listers.SecretLister
+
+	configs reconcilersource.ConfigAccessor
 }
 
 // Check that our Reconciler implements Interface
@@ -169,8 +172,12 @@ func (r *Reconciler) reconcileReceiveAdapter(ctx context.Context, src *v1alpha1.
 		Source:      src,
 		EventSource: eventSource,
 		SinkURL:     src.Status.SinkURI.String(),
+		Configs:     r.configs,
 	}
-	expected := resources.MakeReceiveAdapter(args)
+	expected, err := resources.MakeReceiveAdapter(args)
+	if err != nil {
+		return nil, err
+	}
 	ra, err := r.deploymentLister.Deployments(expected.Namespace).Get(expected.Name)
 	if apierrors.IsNotFound(err) {
 		ra, err = r.kubeClientSet.AppsV1().Deployments(expected.Namespace).Create(expected)

@@ -29,7 +29,7 @@ type SourcesV1alpha1Interface interface {
 	MongoDbSourcesGetter
 }
 
-// SourcesV1alpha1Client is used to interact with features provided by the sources group.
+// SourcesV1alpha1Client is used to interact with features provided by the sources.google.com group.
 type SourcesV1alpha1Client struct {
 	restClient rest.Interface
 }

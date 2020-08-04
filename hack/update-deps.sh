@@ -29,6 +29,7 @@ VERSION="master"
 # float forward in this repository.
 FLOATING_DEPS=(
   "knative.dev/pkg@$VERSION"
+  "knative.dev/eventing@$VERSION"
   "knative.dev/test-infra@$VERSION"
 )
 
