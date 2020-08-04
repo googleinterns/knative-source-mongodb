@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package leaderelection
+// Api versions allow the api contract for a resource to be changed while keeping
+// backward compatibility by support multiple concurrent versions
+// of the same resource
 
-import (
-	kle "knative.dev/pkg/leaderelection"
-)
-
-var ValidateConfig = kle.NewConfigFromConfigMap
+// Package v1 is the v1 version of the API.
+// +k8s:deepcopy-gen=package
+// +groupName=duck.knative.dev
+package v1
