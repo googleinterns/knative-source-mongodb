@@ -42,7 +42,7 @@ import (
 
 const (
 	defaultControllerAgentName = "mongodbsource-controller"
-	defaultFinalizerName       = "mongodbsources.sources"
+	defaultFinalizerName       = "mongodbsources.sources.google.com"
 )
 
 // NewImpl returns a controller.Impl that handles queuing and feeding work from
