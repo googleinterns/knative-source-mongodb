@@ -172,6 +172,7 @@ func (r *Reconciler) reconcileReceiveAdapter(ctx context.Context, src *v1alpha1.
 		Source:      src,
 		EventSource: eventSource,
 		SinkURL:     src.Status.SinkURI.String(),
+		Configs:     r.configs,
 	}
 	expected, err := resources.MakeReceiveAdapter(args)
 	if err != nil {
