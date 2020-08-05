@@ -7,68 +7,49 @@
 
 # Knative Source - MongoDB
 
-## Development
+The MongoDb Event source adds support of MongoDb resources to Knative Eventing.
 
-### Dependencies
+## Prerequisites
 
-1. [go](https://golang.org/doc/install)
+1. Install [Knative Eventing](https://knative.dev/docs/install/any-kubernetes-cluster/#installing-the-eventing-component) in your Kubernetes Cluster.
 
-### Setup environment
+2. Install MongoDb and create a Replica Set. Instructions [available here](https://www.mongodb.com/blog/post/running-mongodb-ops-manager-in-kubernetes#:~:text=The%20MongoDB%20Enterprise%20Kubernetes%20Operator%2C%20or%20simply%20the%20Operator%2C%20manages,changing%20these%20settings%20as%20needed).
 
-Put the following in a `./bashrc` or `./bashprofile`
+## Usage
 
-```sh
-export GOPATH="$HOME/go"
-export PATH="${PATH}:${GOPATH}/bin"
-```
+1. Create a secret containing the data needed to access your MongoDb service.
+   For example:
 
-### Clone to your machine
+   ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+    name: my-mongo-secret
+    namespace: default
+    stringData:
+            URI: mongodb://USERNAME:PASSWORD@IP:PORT/USERDB
+   ```
+   where the IP is the IP of the main/principal pod of your replica set. USERDB is the database your user account pertains to (can be `admin`).
 
-1. [Fork this repo](https://help.github.com/articles/fork-a-repo/) to your account
-2. Clone to your machine
+2. Create the `MongoDbSource` custom object, by configuring the required
+   `database` has to be provided, but `collection` is optional.
+   For example, with a Knative Service as a sink:
 
-```sh
-mkdir -p ${GOPATH}/src/github.com/googleinterns
-cd ${GOPATH}/src/github.com/googleinterns
-git clone git@github.com:${YOUR_GITHUB_USERNAME}/knative-source-mongodb.git
-cd knative-source-mongodb
-git remote add upstream https://github.com/googleinterns/knative-source-mongodb.git
-git remote set-url --push upstream no_push
-```
-
-`Upstream` will allow for you to [sync your fork](https://help.github.com/articles/syncing-a-fork/)
-
-### Building
-
-`go build ./...`
-
-### Running unit tests
-
-`go test ./...`
-
-### Updating dependencies
-
-`./hack/update-deps.sh`
-
-## Source Code Headers
-
-Every file containing source code must include copyright and license
-information. This includes any JS/CSS files that you might be serving out to
-browsers. (This is to help well-intentioned people avoid accidental copying that
-doesn't comply with the license.)
-
-Apache header:
-
-    Copyright 2020 Google LLC
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-        https://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+   ```yaml
+    apiVersion: sources.google.com/v1alpha1
+    kind: MongoDbSource
+    metadata:
+    name: mongodb-example-source
+    namespace: default
+    spec:
+    database: db1
+    collection: coll1  # optional
+    secret:
+        name: my-mongo-secret
+    sink:
+        ref:
+          apiVersion: serving.knative.dev/v1
+          kind: Service
+          name: event-display
+          namespace: mongodb
+   ```
