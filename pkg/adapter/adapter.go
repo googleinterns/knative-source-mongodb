@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	"github.com/googleinterns/knative-source-mongodb/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -152,10 +153,10 @@ func (a *mongoDbAdapter) makeCloudEvent(data bson.M) (*cloudevents.Event, error)
 	// Create Event.
 	event := cloudevents.NewEvent(cloudevents.VersionV1)
 
-	// Set cloud event specs and attributes. TODO: issue #43
+	// Set cloud event specs and attributes.
 	// 		ID     -> id of mongo change object
 	// 		Source -> Source environment variable.
-	// 		Type   -> type of change either insert, delete or update.
+	// 		Type   -> type of change either inserted, deleted or updated.
 	//		Data   -> data payload containing either id only for
 	//                deletion or full object for other changes.
 	change, err := utils.DecodeChangeBson(data)
@@ -163,9 +164,18 @@ func (a *mongoDbAdapter) makeCloudEvent(data bson.M) (*cloudevents.Event, error)
 		return nil, fmt.Errorf("error decoding bson change object: %w", err)
 	}
 	event.SetID(change.ID)
-	event.SetType(change.OperationType)
 	event.SetSource(a.ceSource)
 	event.SetData(cloudevents.ApplicationJSON, change.Payload)
+	switch change.OperationType {
+	case "insert":
+		event.SetType(v1alpha1.MongoDbSourceInsertedEventType)
+	case "delete":
+		event.SetType(v1alpha1.MongoDbSourceDeletedEventType)
+	case "replace":
+		event.SetType(v1alpha1.MongoDbSourceUpdatedEventType)
+	default:
+		return nil, fmt.Errorf("could not recognize type of change: %s", change.OperationType)
+	}
 
 	return &event, nil
 }

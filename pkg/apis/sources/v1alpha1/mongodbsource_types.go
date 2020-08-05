@@ -42,6 +42,24 @@ type MongoDbSource struct {
 	Status MongoDbSourceStatus `json:"status,omitempty"`
 }
 
+// MongoDbSourceEventTypes are the different types of event the source produces.
+var MongoDbSourceEventTypes = []string{
+	MongoDbSourceInsertedEventType,
+	MongoDbSourceDeletedEventType,
+	MongoDbSourceUpdatedEventType,
+}
+
+const (
+	// MongoDbSourceInsertedEventType is the MongoDbSource CloudEvent type for an insert.
+	MongoDbSourceInsertedEventType = "google.com.mongodb.collection.v1.inserted"
+
+	// MongoDbSourceDeletedEventType is the MongoDbSource CloudEvent type for a deletion.
+	MongoDbSourceDeletedEventType = "google.com.mongodb.collection.v1.deleted"
+
+	// MongoDbSourceUpdatedEventType is the MongoDbSource CloudEvent type for an update.
+	MongoDbSourceUpdatedEventType = "google.com.mongodb.collection.v1.updated"
+)
+
 // GetGroupVersionKind returns the GroupVersionKind.
 func (m *MongoDbSource) GetGroupVersionKind() schema.GroupVersionKind {
 	return SchemeGroupVersion.WithKind("MongoDbSource")
