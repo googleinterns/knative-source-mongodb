@@ -17,6 +17,8 @@ limitations under the License.
 package utils
 
 import (
+	"fmt"
+
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -30,15 +32,34 @@ type ChangeObject struct {
 
 // DecodeChangeBson decodes Bson change object.
 func DecodeChangeBson(data bson.M) (*ChangeObject, error) {
-	id := data["_idd"].(bson.M)["_data"].(string)
-	operationType := data["operationType"].(string)
+	// Get ID Object.
+	IDObject, found := data["_id"].(bson.M)
+	if found == false {
+		return nil, fmt.Errorf("bson object does not have field: %s", "_id")
+	}
+	// Get _data field from _id field.
+	id, found := IDObject["_data"].(string)
+	if found == false {
+		return nil, fmt.Errorf("bson object _id field does not have field: %s", "_data")
+	}
+	// Get the operationType.
+	operationType, found := data["operationType"].(string)
+	if found == false {
+		return nil, fmt.Errorf("bson object does not have field: %s", "operationType")
+	}
 
-	// Add payload if replace or insert, else add document key.
+	// Add payload as full document if replace or insert, else add document key.
 	var payload bson.M
 	if operationType == "delete" {
-		payload = data["documentKey"].(bson.M)
+		payload, found = data["documentKey"].(bson.M)
+		if found == false {
+			return nil, fmt.Errorf("bson object does not have field: %s", "documentKey")
+		}
 	} else {
-		payload = data["fullDocument"].(bson.M)
+		payload, found = data["fullDocument"].(bson.M)
+		if found == false {
+			return nil, fmt.Errorf("bson object does not have field: %s", "fullDocument")
+		}
 	}
 
 	return &ChangeObject{
