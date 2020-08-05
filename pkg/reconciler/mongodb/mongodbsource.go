@@ -248,7 +248,7 @@ func (r *Reconciler) makeEventSource(ctx context.Context, src *v1alpha1.MongoDbS
 		return "", err
 	}
 
-	return fmt.Sprintf("%s/%s", url.Hostname(), src.Spec.Database), nil
+	return fmt.Sprintf("mongodb://%s/databases/%s/collections/%s", url.Hostname(), src.Spec.Database, src.Spec.Collection), nil
 }
 
 // Helper function: finds if string exists in array of strings.
