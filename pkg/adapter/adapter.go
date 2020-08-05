@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/googleinterns/knative-source-mongodb/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -154,18 +153,20 @@ func (a *mongoDbAdapter) makeCloudEvent(data bson.M) (*cloudevents.Event, error)
 
 	// Set cloud event specs and attributes. TODO: issue #43
 	// 		ID     -> id of mongo change object
-	// 		Source -> Source environment variable.
+	// 		Source -> database/collection.
 	// 		Type   -> type of change either insert, delete or update.
 	//		Data   -> data payload containing either id only for
 	//                deletion or full object for other changes.
-	change, err := utils.DecodeChangeBson(data)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding bson change object: %w", err)
-	}
-	event.SetID(change.ID)
-	event.SetType(change.OperationType)
+	event.SetID(data["_id"].(bson.M)["_data"].(string))
 	event.SetSource(a.ceSource)
-	event.SetData(cloudevents.ApplicationJSON, change.Payload)
+	// event.SetSource(data["ns"].(bson.M)["db"].(string) + "/" + data["ns"].(bson.M)["coll"].(string))
+	event.SetType(data["operationType"].(string))
 
+	// Add payload if replace or insert, else add document key.
+	if data["operationType"].(string) == "delete" {
+		event.SetData(cloudevents.ApplicationJSON, data["documentKey"].(bson.M))
+	} else {
+		event.SetData(cloudevents.ApplicationJSON, data["fullDocument"].(bson.M))
+	}
 	return &event, nil
 }
