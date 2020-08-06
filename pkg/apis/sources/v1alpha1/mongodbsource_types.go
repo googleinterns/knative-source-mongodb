@@ -43,10 +43,10 @@ type MongoDbSource struct {
 }
 
 // MongoDbSourceEventTypes are the different types of event the source produces.
-var MongoDbSourceEventTypes = []string{
-	MongoDbSourceInsertedEventType,
-	MongoDbSourceDeletedEventType,
-	MongoDbSourceUpdatedEventType,
+var MongoDbSourceEventTypes = map[string]string{
+	"insert":  MongoDbSourceInsertedEventType,
+	"delete":  MongoDbSourceDeletedEventType,
+	"replace": MongoDbSourceUpdatedEventType,
 }
 
 const (

@@ -27,12 +27,23 @@ import (
 type ChangeObject struct {
 	ID            string
 	OperationType string
+	Collection    string
 	Payload       *bson.M
 }
 
 // DecodeChangeBson decodes Bson change object.
 func DecodeChangeBson(data bson.M) (*ChangeObject, error) {
-	// Get ID Object.
+	// Get the Collection origin of the change.
+	originInfo, found := data["ns"].(bson.M)
+	if !found {
+		return nil, errors.New("bson object does not have field about origin information: ns ")
+	}
+	collection, found := originInfo["coll"].(string)
+	if !found {
+		return nil, errors.New("bson object ns field does not have field: coll ")
+	}
+
+	// Get ID Object of the change.
 	idObject, found := data["_id"].(bson.M)
 	if !found {
 		return nil, errors.New("bson object does not have field: _id")
@@ -48,7 +59,7 @@ func DecodeChangeBson(data bson.M) (*ChangeObject, error) {
 		return nil, errors.New("bson object does not have field: operationType")
 	}
 
-	// Add payload as full document if replace or insert, else add document key.
+	// Add payload as full document if replace or insert, else add document key/id.
 	var payload bson.M
 	if operationType == "delete" {
 		payload, found = data["documentKey"].(bson.M)
@@ -65,6 +76,7 @@ func DecodeChangeBson(data bson.M) (*ChangeObject, error) {
 	return &ChangeObject{
 		ID:            id,
 		OperationType: operationType,
+		Collection:    collection,
 		Payload:       &payload,
 	}, nil
 }
