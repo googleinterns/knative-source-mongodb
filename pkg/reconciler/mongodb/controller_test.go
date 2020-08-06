@@ -16,8 +16,12 @@ limitations under the License.
 package mongodbsource
 
 import (
+	"os"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/client/injection/ducks/duck/v1/addressable"
 	"knative.dev/pkg/configmap"
 	logtesting "knative.dev/pkg/logging/testing"
 	. "knative.dev/pkg/reconciler/testing"
@@ -27,14 +31,45 @@ import (
 	_ "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/client/fake"
 	_ "github.com/googleinterns/knative-source-mongodb/pkg/client/injection/informers/sources/v1alpha1/mongodbsource/fake"
 	_ "github.com/googleinterns/knative-source-mongodb/pkg/reconciler/testing"
-	_ "knative.dev/pkg/client/injection/kube/informers/batch/v1/job/fake"
-	_ "knative.dev/pkg/client/injection/kube/informers/core/v1/serviceaccount/fake"
+	_ "knative.dev/eventing/pkg/reconciler/source"
+	_ "knative.dev/pkg/client/injection/kube/informers/apps/v1/deployment/fake"
+	_ "knative.dev/pkg/client/injection/kube/informers/core/v1/secret/fake"
 )
 
 func TestNew(t *testing.T) {
 	defer logtesting.ClearAll()
 	ctx, _ := SetupFakeContext(t)
-	cmw := configmap.NewStaticWatcher()
+	ctx = addressable.WithDuck(ctx)
+	os.Setenv("MONGODB_RA_IMAGE", "example")
+	os.Setenv("METRICS_DOMAIN", "example")
+	cmw := configmap.NewStaticWatcher(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "config-observability",
+			Namespace: "google-sources",
+		},
+		Data: map[string]string{
+			"_example": "test-config",
+		},
+	}, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "config-logging",
+			Namespace: "google-sources",
+		},
+		Data: map[string]string{
+			"zap-logger-config":   "test-config",
+			"loglevel.controller": "info",
+			"loglevel.webhook":    "info",
+		},
+	}, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "config-tracing",
+			Namespace: "google-sources",
+		},
+		Data: map[string]string{
+			"_example": "test-config",
+		},
+	})
+
 	c := NewController(ctx, cmw)
 	if c == nil {
 		t.Fatal("Expected NewController to return a non-nil value")
