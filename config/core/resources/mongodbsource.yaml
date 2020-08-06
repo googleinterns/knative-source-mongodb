@@ -22,9 +22,9 @@ metadata:
   annotations:
     registry.knative.dev/eventTypes: |
       [
-        { "type": "google.com.mongodb.document.update" },
-        { "type": "google.com.mongodb.document.delete" },
-        { "type": "google.com.mongodb.document.insert" }
+        { "type": "google.com.mongodb.collection.v1.inserted", "description": "Sent when a new object is successfully created in a given collection. A failed upload does not trigger this event."  },
+        { "type": "google.com.mongodb.collection.v1.deleted", "description": "Sent when an object has been permanently deleted from a collection. A failed deletion does not trigger this event."},
+        { "type": "google.com.mongodb.collection.v1.updated", "description": "Sent when an existing object is successfully updated in a given collection. This includes only rewriting an existing object. A failed update does not trigger this event."  },
       ]
   name: mongodbsources.sources.google.com
 spec:

@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/eventing/pkg/adapter/v2"
@@ -34,12 +34,12 @@ import (
 // ReceiveAdapterArgs are the arguments needed to create a MongoDbSource Receive Adapter.
 // Every field is required.
 type ReceiveAdapterArgs struct {
-	Image       string
-	Labels      map[string]string
-	Source      *v1alpha1.MongoDbSource
-	EventSource string
-	SinkURL     string
-	Configs     reconcilersource.ConfigAccessor
+	Image          string
+	Labels         map[string]string
+	Source         *v1alpha1.MongoDbSource
+	CeSourcePrefix string
+	SinkURL        string
+	Configs        reconcilersource.ConfigAccessor
 }
 
 // MakeReceiveAdapter generates (but does not insert into K8s) the Receive Adapter Deployment for
@@ -107,8 +107,8 @@ func makeEnv(args *ReceiveAdapterArgs) ([]corev1.EnvVar, error) {
 		Name:  adapter.EnvConfigSink,
 		Value: args.SinkURL,
 	}, {
-		Name:  "EVENT_SOURCE",
-		Value: args.EventSource,
+		Name:  "CE_SOURCE_PREFIX",
+		Value: args.CeSourcePrefix,
 	}, {
 		Name:  "SYSTEM_NAMESPACE",
 		Value: system.Namespace(),

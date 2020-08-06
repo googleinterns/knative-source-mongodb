@@ -18,11 +18,13 @@ package adapter
 
 import (
 	"context"
+	"crypto/md5"
 	"errors"
 	"fmt"
 	"io/ioutil"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	"github.com/googleinterns/knative-source-mongodb/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -38,13 +40,13 @@ type envConfig struct {
 	MongoDbCredentialsPath string `envconfig:"MONGODB_CREDENTIALS" required:"true"`
 	Database               string `envconfig:"MONGODB_DATABASE" required:"true"`
 	Collection             string `envconfig:"MONGODB_COLLECTION" required:"false"`
-	EventSource            string `envconfig:"EVENT_SOURCE" required:"true"`
+	CeSourcePrefix         string `envconfig:"CE_SOURCE_PREFIX" required:"true"`
 }
 
 type mongoDbAdapter struct {
 	namespace       string
 	ceClient        cloudevents.Client
-	ceSource        string
+	ceSourcePrefix  string
 	database        string
 	collection      string
 	credentialsPath string
@@ -70,9 +72,9 @@ func NewAdapter(ctx context.Context, processed adapter.EnvConfigAccessor, ceClie
 	return &mongoDbAdapter{
 		namespace:       env.Namespace,
 		ceClient:        ceClient,
-		ceSource:        env.EventSource,
 		database:        env.Database,
 		collection:      env.Collection,
+		ceSourcePrefix:  env.CeSourcePrefix,
 		credentialsPath: env.MongoDbCredentialsPath,
 		logger:          logger,
 	}
@@ -152,20 +154,20 @@ func (a *mongoDbAdapter) makeCloudEvent(data bson.M) (*cloudevents.Event, error)
 	// Create Event.
 	event := cloudevents.NewEvent(cloudevents.VersionV1)
 
-	// Set cloud event specs and attributes. TODO: issue #43
-	// 		ID     -> id of mongo change object
-	// 		Source -> Source environment variable.
-	// 		Type   -> type of change either insert, delete or update.
-	//		Data   -> data payload containing either id only for
-	//                deletion or full object for other changes.
+	// Decode the bson change object.
 	change, err := utils.DecodeChangeBson(data)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding bson change object: %w", err)
 	}
-	event.SetID(change.ID)
-	event.SetType(change.OperationType)
-	event.SetSource(a.ceSource)
+	// Set cloud event specs and attributes.
+	event.SetID(fmt.Sprintf("%x", md5.Sum([]byte(change.ID))))
+	event.SetSource(fmt.Sprintf("%s/databases/%s/collections/%s", a.ceSourcePrefix, a.database, change.Collection))
 	event.SetData(cloudevents.ApplicationJSON, change.Payload)
+	eventType, found := v1alpha1.MongoDbSourceEventTypes[change.OperationType]
+	if !found {
+		return nil, fmt.Errorf("could not recognize type of change: %s", change.OperationType)
+	}
+	event.SetType(eventType)
 
 	return &event, nil
 }

@@ -165,14 +165,14 @@ func (r *Reconciler) resolveSink(ctx context.Context, src *v1alpha1.MongoDbSourc
 
 // reconcileReceiveAdapter reconciles the Receive Adapter Deployment.
 func (r *Reconciler) reconcileReceiveAdapter(ctx context.Context, src *v1alpha1.MongoDbSource) (*appsv1.Deployment, error) {
-	eventSource, err := r.makeEventSource(ctx, src)
+	ceSourcePrefix, err := r.makeCeSourcePrefix(ctx, src)
 	args := &resources.ReceiveAdapterArgs{
-		Image:       r.receiveAdapterImage,
-		Labels:      resources.Labels(src.Name),
-		Source:      src,
-		EventSource: eventSource,
-		SinkURL:     src.Status.SinkURI.String(),
-		Configs:     r.configs,
+		Image:          r.receiveAdapterImage,
+		Labels:         resources.Labels(src.Name),
+		Source:         src,
+		CeSourcePrefix: ceSourcePrefix,
+		SinkURL:        src.Status.SinkURI.String(),
+		Configs:        r.configs,
 	}
 	expected, err := resources.MakeReceiveAdapter(args)
 	if err != nil {
@@ -230,8 +230,8 @@ func getContainer(name string, spec corev1.PodSpec) (int, *corev1.Container) {
 	return -1, nil
 }
 
-// MakeEventSource computes the Cloud Event source attribute for the given source
-func (r *Reconciler) makeEventSource(ctx context.Context, src *v1alpha1.MongoDbSource) (string, error) {
+// makeCeSourcePrefix computes the Cloud Event source prefix for the Event Source variable.
+func (r *Reconciler) makeCeSourcePrefix(ctx context.Context, src *v1alpha1.MongoDbSource) (string, error) {
 	secret, err := r.secretLister.Secrets(src.Namespace).Get(src.Spec.Secret.Name)
 	if err != nil {
 		logging.FromContext(ctx).Error("Unable to read MongoDb credentials secret", zap.Error(err))
@@ -248,7 +248,7 @@ func (r *Reconciler) makeEventSource(ctx context.Context, src *v1alpha1.MongoDbS
 		return "", err
 	}
 
-	return fmt.Sprintf("%s/%s", url.Hostname(), src.Spec.Database), nil
+	return fmt.Sprintf("mongodb://%s", url.Hostname()), nil
 }
 
 // Helper function: finds if string exists in array of strings.
