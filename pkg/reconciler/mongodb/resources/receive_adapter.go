@@ -136,7 +136,7 @@ func makeEnv(args *ReceiveAdapterArgs) ([]corev1.EnvVar, error) {
 		Value: "/etc/mongodb-credentials",
 	}}
 
-	envs = append(envs, args.Configs.ToEnvVars()...)
+	// envs = append(envs, args.Configs.ToEnvVars()...)
 
 	if args.Source.Spec.CloudEventOverrides != nil && args.Source.Spec.CloudEventOverrides.Extensions != nil {
 		ceJSON, err := json.Marshal(args.Source.Spec.CloudEventOverrides.Extensions)
