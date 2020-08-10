@@ -25,6 +25,8 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/eventing/pkg/reconciler/source"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/kmeta"
 	_ "knative.dev/pkg/metrics/testing"
 	_ "knative.dev/pkg/system/testing"
@@ -46,22 +48,6 @@ func TestMakeReceiveAdapter(t *testing.T) {
 		},
 	}
 
-	got, err := MakeReceiveAdapter(&ReceiveAdapterArgs{
-		Image:  "test-image",
-		Source: src,
-		Labels: map[string]string{
-			"test-key1": "test-value1",
-			"test-key2": "test-value2",
-		},
-		SinkURL:        "sink-uri",
-		CeSourcePrefix: "mongodb://",
-	})
-	if err != nil {
-		t.Errorf("Couldn't make Receive Adapter %w", err)
-	}
-	if got != nil {
-		fmt.Printf("yo")
-	}
 	one := int32(1)
 	trueValue := true
 
@@ -137,6 +123,15 @@ func TestMakeReceiveAdapter(t *testing.T) {
 								}, {
 									Name:  "MONGODB_CREDENTIALS",
 									Value: "/etc/mongodb-credentials",
+								}, {
+									Name:  source.EnvLoggingCfg,
+									Value: "",
+								}, {
+									Name:  source.EnvMetricsCfg,
+									Value: "",
+								}, {
+									Name:  source.EnvTracingCfg,
+									Value: "",
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
@@ -161,7 +156,46 @@ func TestMakeReceiveAdapter(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("unexpected deploy (-want, +got) = %v", diff)
+	ceSrc := src.DeepCopy()
+	ceSrc.Spec.CloudEventOverrides = &duckv1.CloudEventOverrides{Extensions: map[string]string{"1": "one"}}
+	ceWant := want.DeepCopy()
+	ceWant.Spec.Template.Spec.Containers[0].Env = append(ceWant.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "K_CE_OVERRIDES",
+		Value: `{"1":"one"}`,
+	})
+
+	testCases := map[string]struct {
+		want *v1.Deployment
+		src  *v1alpha1.MongoDbSource
+	}{
+		"TestMakeReceiveAdapter": {
+			want: want,
+			src:  src,
+		}, "TestMakeReceiveAdapterWithExtensionOverride": {
+			want: ceWant,
+			src:  ceSrc,
+		},
+	}
+
+	for n, tc := range testCases {
+		t.Run(n, func(t *testing.T) {
+
+			got, _ := MakeReceiveAdapter(&ReceiveAdapterArgs{
+				Image:  "test-image",
+				Source: tc.src,
+				Labels: map[string]string{
+					"test-key1": "test-value1",
+					"test-key2": "test-value2",
+				},
+				SinkURL:        "sink-uri",
+				CeSourcePrefix: "mongodb://",
+				Configs:        &source.EmptyVarsGenerator{},
+			})
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("unexpected deploy (-want, +got) = %v", diff)
+			}
+
+		})
 	}
 }
