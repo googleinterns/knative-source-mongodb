@@ -18,8 +18,10 @@ package testing
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	appsv1listers "k8s.io/client-go/listers/apps/v1"
+	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
@@ -82,6 +84,11 @@ func (l *Listers) GetAllObjects() []runtime.Object {
 // GetDeploymentLister returns the Deployment lister.
 func (l *Listers) GetDeploymentLister() appsv1listers.DeploymentLister {
 	return appsv1listers.NewDeploymentLister(l.indexerFor(&appsv1.Deployment{}))
+}
+
+// GetDeploymentLister returns the Deployment lister.
+func (l *Listers) GetSecretLister() corev1listers.SecretLister {
+	return corev1listers.NewSecretLister(l.indexerFor(&corev1.Secret{}))
 }
 
 // GetMongoDbSourceLister returns the MongoDbSource lister.
