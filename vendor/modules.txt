@@ -937,6 +937,7 @@ knative.dev/eventing/pkg/leaderelection
 knative.dev/eventing/pkg/logging
 knative.dev/eventing/pkg/reconciler/source
 knative.dev/eventing/pkg/tracing
+knative.dev/eventing/pkg/utils
 knative.dev/eventing/pkg/utils/cache
 # knative.dev/pkg v0.0.0-20200812183506-c4576fd38ec2
 ## explicit
