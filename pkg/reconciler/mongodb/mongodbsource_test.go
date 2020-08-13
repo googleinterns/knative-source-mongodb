@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"knative.dev/eventing/pkg/utils"
 	"knative.dev/pkg/apis"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/resolver"
@@ -47,19 +47,11 @@ import (
 )
 
 var (
-	sinkDNS    = "sink.mynamespace.svc." + utils.GetClusterDomainName()
-	sinkURI, _ = apis.ParseURL("http://" + sinkDNS)
+	sinkDNS = sinkName + ".testnamespace.svc.cluster.local"
+	sinkURI = apis.HTTP(sinkDNS)
 
 	sinkDestURI = duckv1.Destination{
 		URI: apis.HTTP(sinkDNS),
-	}
-	sinkDest = duckv1.Destination{
-		Ref: &duckv1.KReference{
-			Name:       sinkName,
-			Namespace:  testNS,
-			Kind:       "Sink",
-			APIVersion: "test.google.com/v1alpha1",
-		},
 	}
 )
 
@@ -122,6 +114,39 @@ func TestAllCases(t *testing.T) {
 			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
 				`missing field(s): spec.sink`),
 		},
+		// }, {
+		// 	Name:    "missing secret",
+		// 	WantErr: true,
+		// 	Objects: []runtime.Object{
+		// 		NewMongoDbSource(sourceName, testNS,
+		// 			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+		// 				Database:   db,
+		// 				Collection: coll,
+		// 				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+		// 			}),
+		// 			WithMongoDbSourceUID(sourceUID),
+		// 		),
+		// 		newSink(),
+		// 	},
+		// 	Key: testNS + "/" + sourceName,
+		// 	WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+		// 		Object: NewMongoDbSource(sourceName, testNS,
+		// 			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+		// 				Database:   db,
+		// 				Collection: coll,
+		// 				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+		// 			}),
+		// 			WithMongoDbSourceUID(sourceUID),
+		// 			// Status Update:
+		// 			WithInitMongoDbSourceConditions,
+		// 			WithMongoDbSourceSink(sinkURI),
+		// 		),
+		// 	}},
+		// 	WantEvents: []string{
+		// 		Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
+		// 			`missing field(s): spec.secret`),
+		// 	},
+
 	},
 	}
 
@@ -140,4 +165,33 @@ func TestAllCases(t *testing.T) {
 		return mongodbsource.NewReconciler(ctx, logging.FromContext(ctx), fakesourcesclient.Get(ctx), listers.GetMongoDbSourceLister(), controller.GetEventRecorder(ctx), r)
 	}))
 
+}
+
+func newSink() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "testing.google.com/v1alpha1",
+			"kind":       "Sink",
+			"metadata": map[string]interface{}{
+				"namespace": testNS,
+				"name":      sinkName,
+			},
+			"status": map[string]interface{}{
+				"address": map[string]interface{}{
+					"hostname": sinkDNS,
+				},
+			},
+		},
+	}
+}
+
+func newSinkDestination() duckv1.Destination {
+	return duckv1.Destination{
+		Ref: &duckv1.KReference{
+			APIVersion: "testing.google.com/v1alpha1",
+			Kind:       "Sink",
+			Name:       sinkName,
+			Namespace:  testNS,
+		},
+	}
 }

@@ -19,7 +19,9 @@ package testing
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	appsv1listers "k8s.io/client-go/listers/apps/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -32,9 +34,15 @@ import (
 	"knative.dev/pkg/reconciler/testing"
 )
 
+var sinkAddToScheme = func(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypeWithName(schema.GroupVersionKind{Group: "testing.google.com", Version: "v1alpha1", Kind: "Sink"}, &unstructured.Unstructured{})
+	return nil
+}
+
 var clientSetSchemes = []func(*runtime.Scheme) error{
 	fakekubeclientset.AddToScheme,
 	fakesourcesclientset.AddToScheme,
+	sinkAddToScheme,
 }
 
 // Listers holds sorters.
