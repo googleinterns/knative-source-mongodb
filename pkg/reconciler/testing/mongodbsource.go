@@ -18,6 +18,7 @@ package testing
 
 import (
 	"context"
+	"errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -72,6 +73,20 @@ func WithMongoDbSourceSinkNotFound(s *v1alpha1.MongoDbSource) {
 func WithMongoDbSourceSink(uri *apis.URL) MongoDbSourceOption {
 	return func(s *v1alpha1.MongoDbSource) {
 		s.Status.MarkSink(uri)
+	}
+}
+
+// WithMongoDbSourceConnectionFailed updates the status of the connection to be failed.
+func WithMongoDbSourceConnectionFailed(err string) MongoDbSourceOption {
+	return func(s *v1alpha1.MongoDbSource) {
+		s.Status.MarkConnectionFailed(errors.New(err))
+	}
+}
+
+// WithMongoDbSourceConnectionSuccess updates the status of the connection to be successful.
+func WithMongoDbSourceConnectionSuccess(err string) MongoDbSourceOption {
+	return func(s *v1alpha1.MongoDbSource) {
+		s.Status.MarkConnectionSuccess()
 	}
 }
 
