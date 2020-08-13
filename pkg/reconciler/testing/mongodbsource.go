@@ -29,8 +29,8 @@ import (
 // MongoDbSourceOption enables further configuration of a CronJob.
 type MongoDbSourceOption func(*v1alpha1.MongoDbSource)
 
-// NewMongoDbSourceV1Alpha1 creates a MongoDbSource with MongoDbSourceOption.
-func NewMongoDbSourceV1Alpha1(name, namespace string, o ...MongoDbSourceOption) *v1alpha1.MongoDbSource {
+// NewMongoDbSource creates a MongoDbSource with MongoDbSourceOption.
+func NewMongoDbSource(name, namespace string, o ...MongoDbSourceOption) *v1alpha1.MongoDbSource {
 	c := &v1alpha1.MongoDbSource{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

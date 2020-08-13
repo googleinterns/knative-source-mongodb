@@ -57,28 +57,20 @@ var (
 		Ref: &duckv1.KReference{
 			Name:       sinkName,
 			Namespace:  testNS,
-			Kind:       "Channel",
-			APIVersion: "messaging.knative.dev/v1beta1",
+			Kind:       "Sink",
+			APIVersion: "test.google.com/v1alpha1",
 		},
 	}
 )
 
 const (
-	image          = "image"
-	RAImage        = "github.com/googleinterns/knative-source-mongodb/test/image"
-	sourceName     = "test-MongoDb-source"
-	sourceUID      = "1234"
-	sourceNameLong = "test-MongoDbserver-source-with-a-very-long-name"
-	sourceUIDLong  = "cafed00d-cafed00d-cafed00d-cafed00d-cafed00d"
-	testNS         = "testnamespace"
-	testSchedule   = "*/2 * * * *"
-	testData       = "data"
-	crName         = "knative-eventing-MongoDbsource-adapter"
-
-	sinkName   = "testsink"
-	generation = 1
-	db         = "db"
-	coll       = "coll"
+	testRAImage = "github.com/googleinterns/knative-source-mongodb/test/image"
+	sourceName  = "test-mongodb-source"
+	sourceUID   = "1234"
+	testNS      = "testnamespace"
+	sinkName    = "testsink"
+	db          = "db"
+	coll        = "coll"
 )
 
 func init() {
@@ -99,7 +91,7 @@ func TestAllCases(t *testing.T) {
 		Name:    "missing sink",
 		WantErr: true,
 		Objects: []runtime.Object{
-			NewMongoDbSourceV1Alpha1(sourceName, testNS,
+			NewMongoDbSource(sourceName, testNS,
 				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
 					Database:   db,
 					Collection: coll,
@@ -112,7 +104,7 @@ func TestAllCases(t *testing.T) {
 		},
 		Key: testNS + "/" + sourceName,
 		WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
-			Object: NewMongoDbSourceV1Alpha1(sourceName, testNS,
+			Object: NewMongoDbSource(sourceName, testNS,
 				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
 					Database:   db,
 					Collection: coll,
@@ -127,7 +119,7 @@ func TestAllCases(t *testing.T) {
 			),
 		}},
 		WantEvents: []string{
-			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-MongoDb-source":`,
+			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
 				`missing field(s): spec.sink`),
 		},
 	},
@@ -140,7 +132,7 @@ func TestAllCases(t *testing.T) {
 			kubeClientSet:       fakekubeclient.Get(ctx),
 			deploymentLister:    listers.GetDeploymentLister(),
 			secretLister:        listers.GetSecretLister(),
-			receiveAdapterImage: RAImage,
+			receiveAdapterImage: testRAImage,
 			configs:             &reconcilersource.EmptyVarsGenerator{},
 			sinkResolver:        resolver.NewURIResolver(ctx, func(types.NamespacedName) {}),
 		}
