@@ -114,38 +114,39 @@ func TestAllCases(t *testing.T) {
 			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
 				`missing field(s): spec.sink`),
 		},
-		//}, {
-		//	Name:    "missing secret",
-		//	WantErr: true,
-		//	Objects: []runtime.Object{
-		//		NewMongoDbSource(sourceName, testNS,
-		//			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
-		//				Database:   db,
-		//				Collection: coll,
-		//				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
-		//			}),
-		//			WithMongoDbSourceUID(sourceUID),
-		//		),
-		//		newSink(),
-		//	},
-		//	Key: testNS + "/" + sourceName,
-		//	WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
-		//		Object: NewMongoDbSource(sourceName, testNS,
-		//			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
-		//				Database:   db,
-		//				Collection: coll,
-		//				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
-		//			}),
-		//			WithMongoDbSourceUID(sourceUID),
-		//			// Status Update:
-		//			WithInitMongoDbSourceConditions,
-		//			WithMongoDbSourceSink(sinkURI),
-		//		),
-		//	}},
-		//	WantEvents: []string{
-		//		Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
-		//			`missing field(s): spec.secret`),
-		//	},
+	}, {
+		Name:    "missing secret",
+		WantErr: true,
+		Objects: []runtime.Object{
+			NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+			),
+			newSink(),
+		},
+		Key: testNS + "/" + sourceName,
+		WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+			Object: NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+				// Status Update:
+				WithInitMongoDbSourceConditions,
+				WithMongoDbSourceSink(sinkURI),
+				WithMongoDbSourceConnectionFailed(`secret "" not found`),
+			),
+		}},
+		WantEvents: []string{
+			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
+				`missing field(s): spec.secret`),
+		},
 	},
 	}
 
