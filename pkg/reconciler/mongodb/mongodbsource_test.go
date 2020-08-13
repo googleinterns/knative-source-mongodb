@@ -18,11 +18,18 @@ package mongodb
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/types"
-	"knative.dev/pkg/resolver"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"knative.dev/eventing/pkg/utils"
+	"knative.dev/pkg/apis"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
+	"knative.dev/pkg/resolver"
+
 	"k8s.io/client-go/kubernetes/scheme"
+	clientgotesting "k8s.io/client-go/testing"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/logging"
@@ -39,8 +46,39 @@ import (
 	. "knative.dev/pkg/reconciler/testing"
 )
 
+var (
+	sinkDNS    = "sink.mynamespace.svc." + utils.GetClusterDomainName()
+	sinkURI, _ = apis.ParseURL("http://" + sinkDNS)
+
+	sinkDestURI = duckv1.Destination{
+		URI: apis.HTTP(sinkDNS),
+	}
+	sinkDest = duckv1.Destination{
+		Ref: &duckv1.KReference{
+			Name:       sinkName,
+			Namespace:  testNS,
+			Kind:       "Channel",
+			APIVersion: "messaging.knative.dev/v1beta1",
+		},
+	}
+)
+
 const (
-	testRAImage = "github.com/googleinterns/knative-source-mongodb/test/image"
+	image          = "image"
+	RAImage        = "github.com/googleinterns/knative-source-mongodb/test/image"
+	sourceName     = "test-MongoDb-source"
+	sourceUID      = "1234"
+	sourceNameLong = "test-MongoDbserver-source-with-a-very-long-name"
+	sourceUIDLong  = "cafed00d-cafed00d-cafed00d-cafed00d-cafed00d"
+	testNS         = "testnamespace"
+	testSchedule   = "*/2 * * * *"
+	testData       = "data"
+	crName         = "knative-eventing-MongoDbsource-adapter"
+
+	sinkName   = "testsink"
+	generation = 1
+	db         = "db"
+	coll       = "coll"
 )
 
 func init() {
@@ -50,16 +88,50 @@ func init() {
 
 func TestAllCases(t *testing.T) {
 	table := TableTest{{
-		Name: "bad workqueue key",
-		// Make sure Reconcile handles bad keys.
-		Key: "too/many/parts",
-	}, {
-		Name: "key not found",
-		// Make sure Reconcile handles good keys that don't exist.
-		Key: "foo/not-found",
-	}}
-
-	// TODO add more UTs
+		// 	Name: "bad workqueue key",
+		// 	// Make sure Reconcile handles bad keys.
+		// 	Key: "too/many/parts",
+		// }, {
+		// 	Name: "key not found",
+		// 	// Make sure Reconcile handles good keys that don't exist.
+		// 	Key: "foo/not-found",
+		// }, {
+		Name:    "missing sink",
+		WantErr: true,
+		Objects: []runtime.Object{
+			NewMongoDbSourceV1Alpha1(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: "secret",
+					},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+			),
+		},
+		Key: testNS + "/" + sourceName,
+		WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+			Object: NewMongoDbSourceV1Alpha1(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: "secret",
+					},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+				// Status Update:
+				WithInitMongoDbSourceConditions,
+				WithMongoDbSourceSinkNotFound,
+			),
+		}},
+		WantEvents: []string{
+			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-MongoDb-source":`,
+				`missing field(s): spec.sink`),
+		},
+	},
+	}
 
 	defer logtesting.ClearAll()
 	table.Test(t, MakeFactory(func(ctx context.Context, listers *Listers, cmw configmap.Watcher, testData map[string]interface{}) controller.Reconciler {
@@ -67,7 +139,8 @@ func TestAllCases(t *testing.T) {
 		r := &Reconciler{
 			kubeClientSet:       fakekubeclient.Get(ctx),
 			deploymentLister:    listers.GetDeploymentLister(),
-			receiveAdapterImage: testRAImage,
+			secretLister:        listers.GetSecretLister(),
+			receiveAdapterImage: RAImage,
 			configs:             &reconcilersource.EmptyVarsGenerator{},
 			sinkResolver:        resolver.NewURIResolver(ctx, func(types.NamespacedName) {}),
 		}

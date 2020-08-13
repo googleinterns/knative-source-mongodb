@@ -63,17 +63,9 @@ var _ mongodbsource.Interface = (*Reconciler)(nil)
 // ReconcileKind implements Interface.ReconcileKind.
 func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSource) reconciler.Event {
 	// Steps:
-	// 1. Ensure it can connect to the DB with the specified credentials, and that the DB and collection exists.
-	// 2. Resolve the sink.
+	// 1. Resolve the sink.
+	// 2. Ensure it can connect to the DB with the specified credentials, and that the DB and collection exists.
 	// 3. Reconcile the receive adapter.
-
-	// Check that we can connect to the DB.
-	err := r.checkConnection(ctx, src)
-	if err != nil {
-		src.Status.MarkConnectionFailed(err)
-		return err
-	}
-	src.Status.MarkConnectionSuccess()
 
 	// Resolve the specified sink.
 	sinkURI, err := r.resolveSink(ctx, src)
@@ -82,6 +74,14 @@ func (r *Reconciler) ReconcileKind(ctx context.Context, src *v1alpha1.MongoDbSou
 		return err
 	}
 	src.Status.MarkSink(sinkURI)
+
+	// Check that we can connect to the DB.
+	err = r.checkConnection(ctx, src)
+	if err != nil {
+		src.Status.MarkConnectionFailed(err)
+		return err
+	}
+	src.Status.MarkConnectionSuccess()
 
 	// Reconcile the receive adapter.
 	ra, err := r.reconcileReceiveAdapter(ctx, src)

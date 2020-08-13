@@ -44,7 +44,7 @@ func NewMongoDbSourceV1Alpha1(name, namespace string, o ...MongoDbSourceOption) 
 	return c
 }
 
-// WithMongoDbSourceUID todo.
+// WithMongoDbSourceUID initializes the UID of the MongoDbSource.
 func WithMongoDbSourceUID(uid string) MongoDbSourceOption {
 	return func(c *v1alpha1.MongoDbSource) {
 		c.UID = types.UID(uid)
@@ -56,48 +56,33 @@ func WithInitMongoDbSourceConditions(s *v1alpha1.MongoDbSource) {
 	s.Status.InitializeConditions()
 }
 
+// WithMongoDbSourceSpec returns a function that updates the Spec field of the MongoDbSource.
 func WithMongoDbSourceSpec(spec v1alpha1.MongoDbSourceSpec) MongoDbSourceOption {
 	return func(c *v1alpha1.MongoDbSource) {
 		c.Spec = spec
 	}
 }
 
+// WithMongoDbSourceSinkNotFound updates the status of the sink to be not found.
 func WithMongoDbSourceSinkNotFound(s *v1alpha1.MongoDbSource) {
 	s.Status.MarkNoSink("NotFound", "")
 }
 
+// WithMongoDbSourceSink updates the status of the sink to be found.
 func WithMongoDbSourceSink(uri *apis.URL) MongoDbSourceOption {
 	return func(s *v1alpha1.MongoDbSource) {
 		s.Status.MarkSink(uri)
 	}
 }
 
+// WithMongoDbSourceNotDeployed updates the status of the source to Not Deployed.
 func WithMongoDbSourceNotDeployed(name string) MongoDbSourceOption {
 	return func(s *v1alpha1.MongoDbSource) {
 		s.Status.PropagateDeploymentAvailability(NewDeployment(name, "any"))
 	}
 }
 
+// WithMongoDbSourceDeployed updates the status of the source to Deployed.
 func WithMongoDbSourceDeployed(s *v1alpha1.MongoDbSource) {
 	s.Status.PropagateDeploymentAvailability(NewDeployment("any", "any", WithDeploymentAvailable()))
 }
-
-func WithMongoDbSourceStatusObservedGeneration(generation int64) MongoDbSourceOption {
-	return func(c *v1alpha1.MongoDbSource) {
-		c.Status.ObservedGeneration = generation
-	}
-}
-
-// func WithMongoDbSourceEventType(s *v1alpha1.MongoDbSource) {
-// 	s.Status.CloudEventAttributes = []duckv1.CloudEventAttributes{{
-// 		Type:   v1alpha1.MongoDbSourceEventType,
-// 		Source: v1alpha1.MongoDbSourceSource(s.Namespace, s.Name),
-// 	}}
-// }
-
-// func WithMongoDbSourceCloudEventAttributes(s *v1alpha1.MongoDbSource) {
-// 	s.Status.CloudEventAttributes = []duckv1.CloudEventAttributes{{
-// 		Type:   v1alpha1.MongoDbSourceEventType,
-// 		Source: v1alpha1.MongoDbSourceSource(s.Namespace, s.Name),
-// 	}}
-// }
