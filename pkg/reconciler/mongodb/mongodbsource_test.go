@@ -48,10 +48,10 @@ import (
 
 var (
 	sinkDNS = sinkName + ".testnamespace.svc.cluster.local"
-	sinkURI = apis.HTTP(sinkDNS)
-
-	sinkDestURI = duckv1.Destination{
-		URI: apis.HTTP(sinkDNS),
+	sinkURI = &apis.URL{
+		Scheme: "http",
+		Host:   sinkDNS,
+		Path:   "/",
 	}
 )
 
@@ -114,39 +114,38 @@ func TestAllCases(t *testing.T) {
 			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
 				`missing field(s): spec.sink`),
 		},
-		// }, {
-		// 	Name:    "missing secret",
-		// 	WantErr: true,
-		// 	Objects: []runtime.Object{
-		// 		NewMongoDbSource(sourceName, testNS,
-		// 			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
-		// 				Database:   db,
-		// 				Collection: coll,
-		// 				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
-		// 			}),
-		// 			WithMongoDbSourceUID(sourceUID),
-		// 		),
-		// 		newSink(),
-		// 	},
-		// 	Key: testNS + "/" + sourceName,
-		// 	WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
-		// 		Object: NewMongoDbSource(sourceName, testNS,
-		// 			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
-		// 				Database:   db,
-		// 				Collection: coll,
-		// 				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
-		// 			}),
-		// 			WithMongoDbSourceUID(sourceUID),
-		// 			// Status Update:
-		// 			WithInitMongoDbSourceConditions,
-		// 			WithMongoDbSourceSink(sinkURI),
-		// 		),
-		// 	}},
-		// 	WantEvents: []string{
-		// 		Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
-		// 			`missing field(s): spec.secret`),
-		// 	},
-
+		//}, {
+		//	Name:    "missing secret",
+		//	WantErr: true,
+		//	Objects: []runtime.Object{
+		//		NewMongoDbSource(sourceName, testNS,
+		//			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+		//				Database:   db,
+		//				Collection: coll,
+		//				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+		//			}),
+		//			WithMongoDbSourceUID(sourceUID),
+		//		),
+		//		newSink(),
+		//	},
+		//	Key: testNS + "/" + sourceName,
+		//	WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+		//		Object: NewMongoDbSource(sourceName, testNS,
+		//			WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+		//				Database:   db,
+		//				Collection: coll,
+		//				SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+		//			}),
+		//			WithMongoDbSourceUID(sourceUID),
+		//			// Status Update:
+		//			WithInitMongoDbSourceConditions,
+		//			WithMongoDbSourceSink(sinkURI),
+		//		),
+		//	}},
+		//	WantEvents: []string{
+		//		Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
+		//			`missing field(s): spec.secret`),
+		//	},
 	},
 	}
 
@@ -167,29 +166,26 @@ func TestAllCases(t *testing.T) {
 
 }
 
+// newSink returns an unstructured v1.Service which is special-cased for resolving the URI.
 func newSink() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "testing.google.com/v1alpha1",
-			"kind":       "Sink",
+			"apiVersion": "v1",
+			"kind":       "Service",
 			"metadata": map[string]interface{}{
 				"namespace": testNS,
 				"name":      sinkName,
-			},
-			"status": map[string]interface{}{
-				"address": map[string]interface{}{
-					"hostname": sinkDNS,
-				},
 			},
 		},
 	}
 }
 
+// newSinkDestination returns an unstructured v1.Service which is special-cased for resolving the URI.
 func newSinkDestination() duckv1.Destination {
 	return duckv1.Destination{
 		Ref: &duckv1.KReference{
-			APIVersion: "testing.google.com/v1alpha1",
-			Kind:       "Sink",
+			APIVersion: "v1",
+			Kind:       "Service",
 			Name:       sinkName,
 			Namespace:  testNS,
 		},
