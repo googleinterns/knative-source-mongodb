@@ -46,6 +46,7 @@ func NewDeployment(name, namespace string, do ...DeploymentOption) *appsv1.Deplo
 	return d
 }
 
+// WithDeploymentLabels adds Labels to the Deployment.
 func WithDeploymentLabels(labels map[string]string) DeploymentOption {
 	return func(d *appsv1.Deployment) {
 		d.ObjectMeta.Labels = labels
@@ -56,24 +57,28 @@ func WithDeploymentLabels(labels map[string]string) DeploymentOption {
 	}
 }
 
+// WithDeploymentOwnerReferences adds OwnerReferences to the Deployment.
 func WithDeploymentOwnerReferences(ownerReferences []metav1.OwnerReference) DeploymentOption {
 	return func(d *appsv1.Deployment) {
 		d.OwnerReferences = ownerReferences
 	}
 }
 
+// WithDeploymentAnnotations adds Annotations to the Deployment.
 func WithDeploymentAnnotations(annotations map[string]string) DeploymentOption {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Annotations = annotations
 	}
 }
 
+// WithDeploymentServiceAccount adds ServiceAccount to the Deployment.
 func WithDeploymentServiceAccount(serviceAccountName string) DeploymentOption {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 	}
 }
 
+// WithDeploymentContainer adds Container to the Deployment.
 func WithDeploymentContainer(name, image string, liveness *corev1.Probe, readiness *corev1.Probe, envVars []corev1.EnvVar, containerPorts []corev1.ContainerPort) DeploymentOption {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.Containers[0].Name = name
