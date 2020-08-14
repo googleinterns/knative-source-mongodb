@@ -18,6 +18,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -102,10 +103,9 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 		logging.FromContext(ctx).Desugar().Error("Unable to read MongoDb credentials secret", zap.Error(err))
 		return err
 	}
-	rawURI, ok := secret.Data["URI"]
+	rawURI, ok := secret.StringData["URI"]
 	if !ok {
-		logging.FromContext(ctx).Desugar().Error("Unable to get MongoDb URI field", zap.Any("secret", secret.Name))
-		return err
+		return errors.New("Unable to get MongoDb URI field")
 	}
 	URI := string(rawURI)
 

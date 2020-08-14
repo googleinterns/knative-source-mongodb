@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -61,6 +62,7 @@ const (
 	sourceUID   = "1234"
 	testNS      = "testnamespace"
 	sinkName    = "testsink"
+	secretName  = "test-secret"
 	db          = "db"
 	coll        = "coll"
 )
@@ -146,6 +148,102 @@ func TestAllCases(t *testing.T) {
 		WantEvents: []string{
 			Eventf(corev1.EventTypeWarning, `UpdateFailed Failed to update status for "test-mongodb-source":`,
 				`missing field(s): spec.secret`),
+		},
+	}, {
+		Name:    "secret has no URI field",
+		WantErr: true,
+		Objects: []runtime.Object{
+			NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+			),
+			newSink(),
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: testNS,
+				},
+				StringData: map[string]string{
+					"notURI": "secretURI",
+				},
+			},
+		},
+		Key: testNS + "/" + sourceName,
+		WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+			Object: NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+				// Status Update:
+				WithInitMongoDbSourceConditions,
+				WithMongoDbSourceSink(sinkURI),
+				WithMongoDbSourceConnectionFailed("Unable to get MongoDb URI field"),
+			),
+		}},
+		WantEvents: []string{
+			Eventf(corev1.EventTypeWarning, "InternalError",
+				"Unable to get MongoDb URI field"),
+		},
+	}, {
+		Name:    "can't create mongodb client: does't start with mongodb://",
+		WantErr: true,
+		Objects: []runtime.Object{
+			NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+			),
+			newSink(),
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: testNS,
+				},
+				StringData: map[string]string{
+					"URI": "notValid",
+				},
+			},
+		},
+		Key: testNS + "/" + sourceName,
+		WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+			Object: NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+				// Status Update:
+				WithInitMongoDbSourceConditions,
+				WithMongoDbSourceSink(sinkURI),
+				WithMongoDbSourceConnectionFailed(`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`),
+			),
+		}},
+		WantEvents: []string{
+			Eventf(corev1.EventTypeWarning, "InternalError",
+				`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`),
 		},
 	},
 	}

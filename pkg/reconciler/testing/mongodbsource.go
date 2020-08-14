@@ -84,7 +84,7 @@ func WithMongoDbSourceConnectionFailed(err string) MongoDbSourceOption {
 }
 
 // WithMongoDbSourceConnectionSuccess updates the status of the connection to be successful.
-func WithMongoDbSourceConnectionSuccess(err string) MongoDbSourceOption {
+func WithMongoDbSourceConnectionSuccess() MongoDbSourceOption {
 	return func(s *v1alpha1.MongoDbSource) {
 		s.Status.MarkConnectionSuccess()
 	}
