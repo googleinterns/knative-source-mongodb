@@ -197,6 +197,54 @@ func TestAllCases(t *testing.T) {
 			Eventf(corev1.EventTypeWarning, "InternalError",
 				"Unable to get MongoDb URI field"),
 		},
+	}, {
+		Name:    "can't create mongodb client: does't start with mongodb://",
+		WantErr: true,
+		Objects: []runtime.Object{
+			NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+			),
+			newSink(),
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: testNS,
+				},
+				StringData: map[string]string{
+					"URI": "notValid",
+				},
+			},
+		},
+		Key: testNS + "/" + sourceName,
+		WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+			Object: NewMongoDbSource(sourceName, testNS,
+				WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+					Database:   db,
+					Collection: coll,
+					Secret: corev1.LocalObjectReference{
+						Name: secretName,
+					},
+					SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+				}),
+				WithMongoDbSourceUID(sourceUID),
+				// Status Update:
+				WithInitMongoDbSourceConditions,
+				WithMongoDbSourceSink(sinkURI),
+				WithMongoDbSourceConnectionFailed(`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`),
+			),
+		}},
+		WantEvents: []string{
+			Eventf(corev1.EventTypeWarning, "InternalError",
+				`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`),
+		},
 	},
 	}
 
