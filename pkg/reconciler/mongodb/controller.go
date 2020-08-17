@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 
+	mongowrapper "github.com/googleinterns/knative-source-mongodb/pkg/mongo"
 	deploymentinformer "knative.dev/pkg/client/injection/kube/informers/apps/v1/deployment"
 
 	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
@@ -68,6 +69,7 @@ func NewController(
 		secretLister:        secretInformer.Lister(),
 		deploymentLister:    deploymentInformer.Lister(),
 		configs:             reconcilersource.WatchConfigurations(ctx, component, cmw),
+		createClientFn:      mongowrapper.NewClient,
 	}
 	impl := v1alpha1mongodbsource.NewImpl(ctx, r)
 
