@@ -27,9 +27,9 @@ import (
 
 	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	"github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
+	mongoclient "github.com/googleinterns/knative-source-mongodb/pkg/mongo"
 	"github.com/googleinterns/knative-source-mongodb/pkg/reconciler/mongodb/resources"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -56,6 +56,10 @@ type Reconciler struct {
 	secretLister     corev1listers.SecretLister
 
 	configs reconcilersource.ConfigAccessor
+
+	// createClientFn is the function used to create the Mongo client that interacts with the database.
+	// This is needed so that we can inject a mock client for UTs purposes.
+	createClientFn mongoclient.CreateFn
 }
 
 // Check that our Reconciler implements Interface
@@ -103,14 +107,14 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 		logging.FromContext(ctx).Desugar().Error("Unable to read MongoDb credentials secret", zap.Error(err))
 		return err
 	}
-	rawURI, ok := secret.StringData["URI"]
+	rawURI, ok := secret.Data["URI"]
 	if !ok {
 		return errors.New("Unable to get MongoDb URI field")
 	}
 	URI := string(rawURI)
 
 	// Connect to the MongoDb replica-set.
-	client, err := mongo.NewClient(options.Client().ApplyURI(URI))
+	client, err := r.createClientFn(options.Client().ApplyURI(URI))
 	if err != nil {
 		logging.FromContext(ctx).Desugar().Error("Error creating mongo client", zap.Error(err))
 		return err

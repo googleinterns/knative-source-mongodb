@@ -29,6 +29,7 @@ import (
 	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/resolver"
 
+	mongowrapper "github.com/googleinterns/knative-source-mongodb/pkg/mongo"
 	"k8s.io/client-go/kubernetes/scheme"
 	clientgotesting "k8s.io/client-go/testing"
 	"knative.dev/pkg/configmap"
@@ -170,8 +171,8 @@ func TestAllCases(t *testing.T) {
 					Name:      secretName,
 					Namespace: testNS,
 				},
-				StringData: map[string]string{
-					"notURI": "secretURI",
+				Data: map[string][]byte{
+					"notURI": []byte("secretURI"),
 				},
 			},
 		},
@@ -218,8 +219,8 @@ func TestAllCases(t *testing.T) {
 					Name:      secretName,
 					Namespace: testNS,
 				},
-				StringData: map[string]string{
-					"URI": "notValid",
+				Data: map[string][]byte{
+					"URI": []byte("notValid"),
 				},
 			},
 		},
@@ -258,11 +259,11 @@ func TestAllCases(t *testing.T) {
 			receiveAdapterImage: testRAImage,
 			configs:             &reconcilersource.EmptyVarsGenerator{},
 			sinkResolver:        resolver.NewURIResolver(ctx, func(types.NamespacedName) {}),
+			createClientFn:      mongowrapper.NewClient,
 		}
 
 		return mongodbsource.NewReconciler(ctx, logging.FromContext(ctx), fakesourcesclient.Get(ctx), listers.GetMongoDbSourceLister(), controller.GetEventRecorder(ctx), r)
 	}))
-
 }
 
 // newSink returns an unstructured v1.Service which is special-cased for resolving the URI.
