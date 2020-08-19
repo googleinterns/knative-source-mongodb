@@ -23,10 +23,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// CreateFn is a factory function to create a Storage client.
+// CreateFn is a factory function to create a Mongo client.
 type CreateFn func(opts ...*options.ClientOptions) (Client, error)
 
-// NewClient creates a new wrapped Storage client.
+// NewClient creates a new wrapped Mongo client.
 func NewClient(opts ...*options.ClientOptions) (Client, error) {
 	client, err := mongo.NewClient(opts...)
 	if err != nil {
@@ -42,16 +42,8 @@ type mongoClient struct {
 	client *mongo.Client
 }
 
-// database wraps mongo.Database. It is the client that will be used everywhere except unit tests.
-type database struct {
-	database *mongo.Database
-}
-
 // Verify that it satisfies the mongo.Client interface.
 var _ Client = &mongoClient{}
-
-// Verify that it satisfies the mongo.Database interface.
-var _ Database = &database{}
 
 // Connect implements mongo.Client.Connect.
 func (mc *mongoClient) Connect(ctx context.Context) error {
@@ -73,9 +65,4 @@ func (mc *mongoClient) Disconnect(ctx context.Context) error {
 // ListDatabaseNames implements mongo.Client.ListDatabaseNames.
 func (mc *mongoClient) ListDatabaseNames(ctx context.Context, filter interface{}, opts ...*options.ListDatabasesOptions) ([]string, error) {
 	return mc.client.ListDatabaseNames(ctx, filter, opts...)
-}
-
-// ListCollectionNames implements mongo.Client.Database.ListCollectionNames.
-func (db *database) ListCollectionNames(ctx context.Context, filter interface{}, opts ...*options.ListCollectionsOptions) ([]string, error) {
-	return db.database.ListCollectionNames(ctx, filter, opts...)
 }
