@@ -121,7 +121,7 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 	}
 	err = client.Connect(ctx)
 	if err != nil {
-		logging.FromContext(ctx).Desugar().Error("Error connecting to database", zap.Error(err))
+		logging.FromContext(ctx).Desugar().Error("Error connecting to mongo client", zap.Error(err))
 		return err
 	}
 	defer client.Disconnect(ctx)
@@ -133,8 +133,8 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 		return err
 	}
 	if !stringInSlice(src.Spec.Database, databases) {
-		err = fmt.Errorf("database %q not available in existing databases", src.Spec.Database)
-		logging.FromContext(ctx).Desugar().Error("Database not available in existing databases", zap.Any("database", src.Spec.Database), zap.Any("availableDatabases", fmt.Sprint(databases)), zap.Error(err))
+		err = fmt.Errorf("database %q not found in available databases", src.Spec.Database)
+		logging.FromContext(ctx).Desugar().Error("Database not found in available databases", zap.Any("database", src.Spec.Database), zap.Any("availableDatabases", fmt.Sprint(databases)), zap.Error(err))
 		return err
 	}
 
@@ -146,8 +146,8 @@ func (r *Reconciler) checkConnection(ctx context.Context, src *v1alpha1.MongoDbS
 			return err
 		}
 		if !stringInSlice(src.Spec.Collection, collections) {
-			err = fmt.Errorf("collection %q not available in existing collections", src.Spec.Collection)
-			logging.FromContext(ctx).Desugar().Error("Collection not available in existing collections", zap.Any("collection", src.Spec.Collection), zap.Any("availableCollections", fmt.Sprint(collections)), zap.Error(err))
+			err = fmt.Errorf("collection %q not found in available collections", src.Spec.Collection)
+			logging.FromContext(ctx).Desugar().Error("Collection not found in available collections", zap.Any("collection", src.Spec.Collection), zap.Any("availableCollections", fmt.Sprint(collections)), zap.Error(err))
 			return err
 		}
 	}
