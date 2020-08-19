@@ -19,6 +19,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -206,61 +207,7 @@ func TestAllCases(t *testing.T) {
 			},
 		},
 		{
-			Name:    "can't create mongodb client: does't start with mongodb://",
-			WantErr: true,
-			Objects: []runtime.Object{
-				NewMongoDbSource(sourceName, testNS,
-					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
-						Database:   db,
-						Collection: coll,
-						Secret: corev1.LocalObjectReference{
-							Name: secretName,
-						},
-						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
-					}),
-					WithMongoDbSourceUID(sourceUID),
-				),
-				newSink(),
-				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      secretName,
-						Namespace: testNS,
-					},
-					Data: map[string][]byte{
-						"URI": []byte("notValid"),
-					},
-				},
-			},
-			Key: testNS + "/" + sourceName,
-			OtherTestData: map[string]interface{}{
-				"mongo": mongotesting.TestClientData{
-					CreateClientErr: errors.New(`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`),
-				},
-			},
-			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
-				Object: NewMongoDbSource(sourceName, testNS,
-					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
-						Database:   db,
-						Collection: coll,
-						Secret: corev1.LocalObjectReference{
-							Name: secretName,
-						},
-						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
-					}),
-					WithMongoDbSourceUID(sourceUID),
-					// Status Update:
-					WithInitMongoDbSourceConditions,
-					WithMongoDbSourceSink(sinkURI),
-					WithMongoDbSourceConnectionFailed(`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`),
-				),
-			}},
-			WantEvents: []string{
-				Eventf(corev1.EventTypeWarning, "InternalError",
-					`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`),
-			},
-		},
-		{
-			Name:    "can't create mongodb client: does't start with mongodb://",
+			Name:    "can't create mongodb client",
 			WantErr: true,
 			Objects: []runtime.Object{
 				NewMongoDbSource(sourceName, testNS,
@@ -311,6 +258,168 @@ func TestAllCases(t *testing.T) {
 			WantEvents: []string{
 				Eventf(corev1.EventTypeWarning, "InternalError",
 					`Error creating mongo client`),
+			},
+		},
+		{
+			Name:    "can't connect to mongodb client",
+			WantErr: true,
+			Objects: []runtime.Object{
+				NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+				),
+				newSink(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: testNS,
+					},
+					Data: map[string][]byte{
+						"URI": []byte("mongodb://valid"),
+					},
+				},
+			},
+			Key: testNS + "/" + sourceName,
+			OtherTestData: map[string]interface{}{
+				"mongo": mongotesting.TestClientData{
+					ConnectErr: errors.New(`Error connecting to mongo client`),
+				},
+			},
+			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+				Object: NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+					// Status Update:
+					WithInitMongoDbSourceConditions,
+					WithMongoDbSourceSink(sinkURI),
+					WithMongoDbSourceConnectionFailed(`Error connecting to mongo client`),
+				),
+			}},
+			WantEvents: []string{
+				Eventf(corev1.EventTypeWarning, "InternalError",
+					`Error connecting to mongo client`),
+			},
+		},
+		{
+			Name:    "can't list dbs",
+			WantErr: true,
+			Objects: []runtime.Object{
+				NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+				),
+				newSink(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: testNS,
+					},
+					Data: map[string][]byte{
+						"URI": []byte("mongodb://valid"),
+					},
+				},
+			},
+			Key: testNS + "/" + sourceName,
+			OtherTestData: map[string]interface{}{
+				"mongo": mongotesting.TestClientData{
+					ListDbErr: errors.New(`Error listing databases`),
+				},
+			},
+			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+				Object: NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+					// Status Update:
+					WithInitMongoDbSourceConditions,
+					WithMongoDbSourceSink(sinkURI),
+					WithMongoDbSourceConnectionFailed("Error listing databases"),
+				),
+			}},
+			WantEvents: []string{
+				Eventf(corev1.EventTypeWarning, "InternalError",
+					"Error listing databases"),
+			},
+		},
+		{
+			Name:    "can't find db in available dbs",
+			WantErr: true,
+			Objects: []runtime.Object{
+				NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+				),
+				newSink(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: testNS,
+					},
+					Data: map[string][]byte{
+						"URI": []byte("mongodb://valid"),
+					},
+				},
+			},
+			Key: testNS + "/" + sourceName,
+			OtherTestData: map[string]interface{}{
+				"mongo": mongotesting.TestClientData{
+					Databases: []string{"otherDb"},
+				},
+			},
+			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+				Object: NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+					// Status Update:
+					WithInitMongoDbSourceConditions,
+					WithMongoDbSourceSink(sinkURI),
+					WithMongoDbSourceConnectionFailed(fmt.Sprintf(`database %q not found in available databases`, db)),
+				),
+			}},
+			WantEvents: []string{
+				Eventf(corev1.EventTypeWarning, "InternalError",
+					fmt.Sprintf(`database %q not found in available databases`, db)),
 			},
 		},
 	}
