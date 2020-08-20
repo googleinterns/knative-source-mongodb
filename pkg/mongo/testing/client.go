@@ -56,6 +56,7 @@ type TestClientData struct {
 	CloseErr        error
 	ListDbErr       error
 	Databases       []string
+	DbData          TestDbData
 }
 
 // Verify that it satisfies the mongo.Client interface.
@@ -69,7 +70,7 @@ func (tc *testClient) Connect(ctx context.Context) error {
 // Database implements mongo.Client.Database.
 func (tc *testClient) Database(name string, opts ...*options.DatabaseOptions) mongo.Database {
 	return &testDatabase{
-		data: TestDbData{},
+		data: tc.data.DbData,
 	}
 }
 

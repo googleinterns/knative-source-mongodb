@@ -23,7 +23,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// database wraps mongo.Database. It is the client that will be used everywhere except unit tests.
+// tesDatabase wraps the fake mongo.Database.
 type testDatabase struct {
 	data TestDbData
 }

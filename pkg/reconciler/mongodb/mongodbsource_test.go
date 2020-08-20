@@ -422,6 +422,120 @@ func TestAllCases(t *testing.T) {
 					fmt.Sprintf(`database %q not found in available databases`, db)),
 			},
 		},
+		{
+			Name:    "can't list colls",
+			WantErr: true,
+			Objects: []runtime.Object{
+				NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+				),
+				newSink(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: testNS,
+					},
+					Data: map[string][]byte{
+						"URI": []byte("mongodb://valid"),
+					},
+				},
+			},
+			Key: testNS + "/" + sourceName,
+			OtherTestData: map[string]interface{}{
+				"mongo": mongotesting.TestClientData{
+					Databases: []string{"otherDb", db},
+					DbData: mongotesting.TestDbData{
+						ListCollErr: errors.New("Error listing collections"),
+					},
+				},
+			},
+			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+				Object: NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+					// Status Update:
+					WithInitMongoDbSourceConditions,
+					WithMongoDbSourceSink(sinkURI),
+					WithMongoDbSourceConnectionFailed("Error listing collections"),
+				),
+			}},
+			WantEvents: []string{
+				Eventf(corev1.EventTypeWarning, "InternalError",
+					"Error listing collections"),
+			},
+		},
+		{
+			Name:    "can't find coll in available colls",
+			WantErr: true,
+			Objects: []runtime.Object{
+				NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+				),
+				newSink(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: testNS,
+					},
+					Data: map[string][]byte{
+						"URI": []byte("mongodb://valid"),
+					},
+				},
+			},
+			Key: testNS + "/" + sourceName,
+			OtherTestData: map[string]interface{}{
+				"mongo": mongotesting.TestClientData{
+					Databases: []string{"otherDb", db},
+					DbData: mongotesting.TestDbData{
+						Collections: []string{"otherColl"},
+					},
+				},
+			},
+			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+				Object: NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+					// Status Update:
+					WithInitMongoDbSourceConditions,
+					WithMongoDbSourceSink(sinkURI),
+					WithMongoDbSourceConnectionFailed(fmt.Sprintf(`collection %q not found in available collections`, coll)),
+				),
+			}},
+			WantEvents: []string{
+				Eventf(corev1.EventTypeWarning, "InternalError",
+					fmt.Sprintf(`collection %q not found in available collections`, coll)),
+			},
+		},
 	}
 
 	defer logtesting.ClearAll()
