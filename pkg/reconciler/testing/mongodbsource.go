@@ -98,6 +98,8 @@ func WithMongoDbSourceNotDeployed(name string) MongoDbSourceOption {
 }
 
 // WithMongoDbSourceDeployed updates the status of the source to Deployed.
-func WithMongoDbSourceDeployed(s *v1alpha1.MongoDbSource) {
-	s.Status.PropagateDeploymentAvailability(NewDeployment("any", "any", WithDeploymentAvailable()))
+func WithMongoDbSourceDeployed() MongoDbSourceOption {
+	return func(s *v1alpha1.MongoDbSource) {
+		s.Status.PropagateDeploymentAvailability(NewDeployment("any", "any", WithDeploymentAvailable()))
+	}
 }

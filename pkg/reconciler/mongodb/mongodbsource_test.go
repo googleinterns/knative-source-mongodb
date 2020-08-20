@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"testing"
 
+	require "github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -45,6 +47,7 @@ import (
 
 	sourcesv1alpha1 "github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	"github.com/googleinterns/knative-source-mongodb/pkg/client/injection/reconciler/sources/v1alpha1/mongodbsource"
+	"github.com/googleinterns/knative-source-mongodb/pkg/reconciler/mongodb/resources"
 	. "github.com/googleinterns/knative-source-mongodb/pkg/reconciler/testing"
 	"knative.dev/pkg/client/injection/ducks/duck/v1/addressable"
 	. "knative.dev/pkg/reconciler/testing"
@@ -68,6 +71,7 @@ const (
 	secretName  = "test-secret"
 	db          = "db"
 	coll        = "coll"
+	validURI    = "mongodb://valid"
 )
 
 func init() {
@@ -282,7 +286,7 @@ func TestAllCases(t *testing.T) {
 						Namespace: testNS,
 					},
 					Data: map[string][]byte{
-						"URI": []byte("mongodb://valid"),
+						"URI": []byte(validURI),
 					},
 				},
 			},
@@ -336,7 +340,7 @@ func TestAllCases(t *testing.T) {
 						Namespace: testNS,
 					},
 					Data: map[string][]byte{
-						"URI": []byte("mongodb://valid"),
+						"URI": []byte(validURI),
 					},
 				},
 			},
@@ -390,7 +394,7 @@ func TestAllCases(t *testing.T) {
 						Namespace: testNS,
 					},
 					Data: map[string][]byte{
-						"URI": []byte("mongodb://valid"),
+						"URI": []byte(validURI),
 					},
 				},
 			},
@@ -444,7 +448,7 @@ func TestAllCases(t *testing.T) {
 						Namespace: testNS,
 					},
 					Data: map[string][]byte{
-						"URI": []byte("mongodb://valid"),
+						"URI": []byte(validURI),
 					},
 				},
 			},
@@ -501,7 +505,7 @@ func TestAllCases(t *testing.T) {
 						Namespace: testNS,
 					},
 					Data: map[string][]byte{
-						"URI": []byte("mongodb://valid"),
+						"URI": []byte(validURI),
 					},
 				},
 			},
@@ -535,6 +539,118 @@ func TestAllCases(t *testing.T) {
 				Eventf(corev1.EventTypeWarning, "InternalError",
 					fmt.Sprintf(`collection %q not found in available collections`, coll)),
 			},
+		},
+		{
+			Name:    "create a new deployement",
+			WantErr: false,
+			Objects: []runtime.Object{
+				NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+				),
+				newSink(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: testNS,
+					},
+					Data: map[string][]byte{
+						"URI": []byte(validURI),
+					},
+				},
+			},
+			Key: testNS + "/" + sourceName,
+			OtherTestData: map[string]interface{}{
+				"mongo": mongotesting.TestClientData{
+					Databases: []string{"otherDb", db},
+					DbData: mongotesting.TestDbData{
+						Collections: []string{"otherColl", coll},
+					},
+				},
+			},
+			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+				Object: NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+					// Status Update:
+					WithInitMongoDbSourceConditions,
+					WithMongoDbSourceSink(sinkURI),
+					WithMongoDbSourceConnectionSuccess(),
+					WithMongoDbSourceNotDeployed(fmt.Sprintf("mongodbsource-%s-%s", sourceName, sourceUID)),
+				),
+			}},
+			WantCreates: []runtime.Object{
+				makeReceiveAdapter(t),
+			},
+		},
+		{
+			Name:    "valid",
+			WantErr: false,
+			Objects: []runtime.Object{
+				NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+				),
+				newSink(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: testNS,
+					},
+					Data: map[string][]byte{
+						"URI": []byte(validURI),
+					},
+				},
+				makeAvailableReceiveAdapter(t),
+			},
+			Key: testNS + "/" + sourceName,
+			OtherTestData: map[string]interface{}{
+				"mongo": mongotesting.TestClientData{
+					Databases: []string{"otherDb", db},
+					DbData: mongotesting.TestDbData{
+						Collections: []string{"otherColl", coll},
+					},
+				},
+			},
+			WantStatusUpdates: []clientgotesting.UpdateActionImpl{{
+				Object: NewMongoDbSource(sourceName, testNS,
+					WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+						Database:   db,
+						Collection: coll,
+						Secret: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+					}),
+					WithMongoDbSourceUID(sourceUID),
+					// Status Update:
+					WithInitMongoDbSourceConditions,
+					WithMongoDbSourceSink(sinkURI),
+					WithMongoDbSourceConnectionSuccess(),
+					WithMongoDbSourceDeployed(),
+				),
+			}},
 		},
 	}
 
@@ -579,4 +695,47 @@ func newSinkDestination() duckv1.Destination {
 			Namespace:  testNS,
 		},
 	}
+}
+
+func makeReceiveAdapterWithName(t *testing.T, sourceName string) *appsv1.Deployment {
+	t.Helper()
+
+	src := NewMongoDbSource(sourceName, testNS,
+		WithMongoDbSourceSpec(sourcesv1alpha1.MongoDbSourceSpec{
+			Database:   db,
+			Collection: coll,
+			Secret: corev1.LocalObjectReference{
+				Name: secretName,
+			},
+			SourceSpec: duckv1.SourceSpec{Sink: newSinkDestination()},
+		}),
+		WithMongoDbSourceUID(sourceUID),
+		// Status Update:
+		WithInitMongoDbSourceConditions,
+		WithMongoDbSourceSink(sinkURI),
+		WithMongoDbSourceConnectionSuccess(),
+	)
+	args := resources.ReceiveAdapterArgs{
+		Image:          testRAImage,
+		Source:         src,
+		Labels:         resources.Labels(sourceName),
+		CeSourcePrefix: validURI,
+		SinkURL:        sinkURI.String(),
+		Configs:        &reconcilersource.EmptyVarsGenerator{},
+	}
+
+	ra, err := resources.MakeReceiveAdapter(&args)
+	require.NoError(t, err)
+
+	return ra
+}
+
+func makeReceiveAdapter(t *testing.T) *appsv1.Deployment {
+	return makeReceiveAdapterWithName(t, sourceName)
+}
+
+func makeAvailableReceiveAdapter(t *testing.T) *appsv1.Deployment {
+	ra := makeReceiveAdapter(t)
+	WithDeploymentAvailable()(ra)
+	return ra
 }
