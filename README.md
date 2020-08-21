@@ -13,7 +13,12 @@ The MongoDb Event source adds support of MongoDb resources to Knative Eventing.
 
 1. Install [Knative Eventing](https://knative.dev/docs/install/any-kubernetes-cluster/#installing-the-eventing-component) in your Kubernetes Cluster.
 
-2. Install MongoDb and create a Replica Set. Instructions [available here](https://www.mongodb.com/blog/post/running-mongodb-ops-manager-in-kubernetes#:~:text=The%20MongoDB%20Enterprise%20Kubernetes%20Operator%2C%20or%20simply%20the%20Operator%2C%20manages,changing%20these%20settings%20as%20needed).
+2. Either:
+
+* Install MongoDb on your Kubernetes Cluster and create a Replica Set. Instructions [available here](https://www.mongodb.com/blog/post/running-mongodb-ops-manager-in-kubernetes#:~:text=The%20MongoDB%20Enterprise%20Kubernetes%20Operator%2C%20or%20simply%20the%20Operator%2C%20manages,changing%20these%20settings%20as%20needed).
+
+* Create a MongoDb Cluster on Atlas, through GCP for example. Link [available here](https://console.cloud.google.com/marketplace/details/gc-launcher-for-mongodb-atlas/mongodb-atlas).
+
 
 ## Usage
 
@@ -24,12 +29,12 @@ The MongoDb Event source adds support of MongoDb resources to Knative Eventing.
     apiVersion: v1
     kind: Secret
     metadata:
-    name: my-mongo-secret
-    namespace: default
+        name: my-mongo-secret
+        namespace: default
     stringData:
             URI: mongodb://USERNAME:PASSWORD@IP:PORT/USERDB
    ```
-   where the IP is the IP of the main/principal pod of your replica set. USERDB is the database your user account pertains to (can be `admin`).
+   The URI is the connection string of your Mongo Database or Cluster. USERDB is the database your user account pertains to (can be `admin`).
 
 2. Create the `MongoDbSource` custom object, by configuring the required
    `database` has to be provided, but `collection` is optional.
@@ -39,13 +44,13 @@ The MongoDb Event source adds support of MongoDb resources to Knative Eventing.
     apiVersion: sources.google.com/v1alpha1
     kind: MongoDbSource
     metadata:
-    name: mongodb-example-source
-    namespace: default
+        name: mongodb-example-source
+        namespace: default
     spec:
-    database: db1
-    collection: coll1  # optional
-    secret:
-        name: my-mongo-secret
+        database: db1
+        collection: coll1  # optional
+        secret:
+            name: my-mongo-secret
     sink:
         ref:
           apiVersion: serving.knative.dev/v1
