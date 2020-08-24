@@ -42,7 +42,6 @@ func DecodeChangeBson(data bson.M) (*ChangeObject, error) {
 	if !found {
 		return nil, errors.New("bson object ns field does not have field: coll ")
 	}
-
 	// Get ID Object of the change.
 	idObject, found := data["_id"].(bson.M)
 	if !found {
