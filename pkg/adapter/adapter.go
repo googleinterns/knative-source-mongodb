@@ -52,9 +52,6 @@ type mongoDbAdapter struct {
 	collection      string
 	credentialsPath string
 	logger          *zap.SugaredLogger
-	// createStreamFn is the function used to create the Mongo ChangeStream that interacts with the database.
-	// This is needed so that we can inject a mock client for UTs purposes.
-	// createStreamFn mongoclient.CreateStreamFn
 }
 
 // dataSource interface to interact with either a mongo.database or a mongo.collection.

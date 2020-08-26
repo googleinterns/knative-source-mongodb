@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	// testcloudclient "github.com/eventing/pkg/kncloudevents/testing/"
 	"github.com/google/go-cmp/cmp"
 	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
 	mongotesting "github.com/googleinterns/knative-source-mongodb/pkg/mongo/testing"
@@ -165,8 +164,7 @@ func TestProcessChanges(t *testing.T) {
 			name: "decoder error",
 
 			testCSdata: mongotesting.TestCSData{
-				DecodeErr:      errors.New("Error decoding the change stream"),
-				NextFnExecuted: true,
+				DecodeErr: errors.New("Error decoding the change stream"),
 			},
 			wantCE: false,
 		},
@@ -191,7 +189,6 @@ func TestProcessChanges(t *testing.T) {
 					},
 					"operationType": "insert",
 				},
-				NextFnExecuted: true,
 			},
 			wantCE: false,
 		},
@@ -216,7 +213,6 @@ func TestProcessChanges(t *testing.T) {
 					},
 					"operationType": "insert",
 				},
-				NextFnExecuted: true,
 			},
 			wantCE: true,
 		},

@@ -24,6 +24,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+var (
+	// nextFnNotExecuted is set so that Next returns true only once, then false, for each test.
+	nextFnNotExecuted = true
+)
+
 // TestChangeStream wraps the fake mongo.ChangeStream.
 type TestChangeStream struct {
 	Data TestCSData
@@ -31,9 +36,8 @@ type TestChangeStream struct {
 
 // TestCSData is the data used to configure the test MongoDb ChangeStream.
 type TestCSData struct {
-	DecodeErr      error
-	NewChange      bson.M
-	NextFnExecuted bool
+	DecodeErr error
+	NewChange bson.M
 }
 
 // Verify that it satisfies the mongo.ChangeStream interface.
@@ -41,11 +45,12 @@ var _ mongoclient.ChangeStream = &TestChangeStream{}
 
 // Next implements mongo.Client.ChangeStream.Next.
 func (tCS *TestChangeStream) Next(ctx context.Context) bool {
-	temp := tCS.Data.NextFnExecuted
-	if tCS.Data.NextFnExecuted {
-		tCS.Data.NextFnExecuted = false
+	if nextFnNotExecuted {
+		nextFnNotExecuted = false
+		return true
 	}
-	return temp
+	nextFnNotExecuted = true
+	return false
 
 }
 
