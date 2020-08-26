@@ -34,3 +34,9 @@ type Client interface {
 type Database interface {
 	ListCollectionNames(ctx context.Context, filter interface{}, opts ...*options.ListCollectionsOptions) ([]string, error)
 }
+
+// ChangeStream matches the interface exposed by mongo.ChangeStream.
+type ChangeStream interface {
+	Next(ctx context.Context) bool
+	Decode(val interface{}) error
+}

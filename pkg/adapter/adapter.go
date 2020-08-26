@@ -25,6 +25,7 @@ import (
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/googleinterns/knative-source-mongodb/pkg/apis/sources/v1alpha1"
+	mongoclient "github.com/googleinterns/knative-source-mongodb/pkg/mongo"
 	"github.com/googleinterns/knative-source-mongodb/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -51,6 +52,9 @@ type mongoDbAdapter struct {
 	collection      string
 	credentialsPath string
 	logger          *zap.SugaredLogger
+	// createStreamFn is the function used to create the Mongo ChangeStream that interacts with the database.
+	// This is needed so that we can inject a mock client for UTs purposes.
+	// createStreamFn mongoclient.CreateStreamFn
 }
 
 // dataSource interface to interact with either a mongo.database or a mongo.collection.
@@ -126,7 +130,7 @@ func (a *mongoDbAdapter) Start(ctx context.Context) error {
 }
 
 // processChanges processes the new incoming change, creates a cloud event and sends it.
-func (a *mongoDbAdapter) processChanges(ctx context.Context, stream *mongo.ChangeStream) {
+func (a *mongoDbAdapter) processChanges(ctx context.Context, stream mongoclient.ChangeStream) {
 	// For each new change recorded.
 	for stream.Next(ctx) {
 		var data bson.M
