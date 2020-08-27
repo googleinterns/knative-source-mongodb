@@ -15,10 +15,15 @@ The MongoDb Event source adds support of MongoDb resources to Knative Eventing.
 
 2. Either:
 
-* Install MongoDb on your Kubernetes Cluster and create a Replica Set. Instructions [available here](https://www.mongodb.com/blog/post/running-mongodb-ops-manager-in-kubernetes#:~:text=The%20MongoDB%20Enterprise%20Kubernetes%20Operator%2C%20or%20simply%20the%20Operator%2C%20manages,changing%20these%20settings%20as%20needed).
+    * Install MongoDb on your Kubernetes Cluster and create a Replica Set. Instructions [available here](https://www.mongodb.com/blog/post/running-mongodb-ops-manager-in-kubernetes#:~:text=The%20MongoDB%20Enterprise%20Kubernetes%20Operator%2C%20or%20simply%20the%20Operator%2C%20manages,changing%20these%20settings%20as%20needed).
 
-* Create a MongoDb Cluster on Atlas, through GCP for example. Link [available here](https://console.cloud.google.com/marketplace/details/gc-launcher-for-mongodb-atlas/mongodb-atlas).
+    * Create a MongoDb Cluster on Atlas, through GCP for example. Link [available here](https://console.cloud.google.com/marketplace/details/gc-launcher-for-mongodb-atlas/mongodb-atlas).
 
+3. Install [ko](https://github.com/google/ko) and then execute:
+
+    ```
+    ko apply -f ./config
+    ```
 
 ## Usage
 
