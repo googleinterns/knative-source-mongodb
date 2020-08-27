@@ -7,7 +7,7 @@
 
 # Knative Source - MongoDB
 
-The MongoDb Event source adds support of MongoDb resources to Knative Eventing.
+The MongoDb Event Source adds support of MongoDB resources to Knative Eventing.
 
 ## Prerequisites
 
@@ -37,12 +37,11 @@ The MongoDb Event source adds support of MongoDb resources to Knative Eventing.
         name: my-mongo-secret
         namespace: default
     stringData:
-            URI: mongodb://USERNAME:PASSWORD@IP:PORT/USERDB
+        URI: mongodb://USERNAME:PASSWORD@IP:PORT/USERDB
    ```
    The URI is the connection string of your Mongo Database or Cluster. USERDB is the database your user account pertains to (can be `admin`).
 
-2. Create the `MongoDbSource` custom object, by configuring the required
-   `database` has to be provided, but `collection` is optional.
+2. Create the `MongoDbSource` custom object: provide the required `database` field, provide the `collection` field (optional), and reference the `secret` just created as well as the destination `sink`.
    For example, with a Knative Service as a sink:
 
    ```yaml
