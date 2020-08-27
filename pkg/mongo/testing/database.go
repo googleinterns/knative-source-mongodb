@@ -23,7 +23,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// tesDatabase wraps the fake mongo.Database.
+// testDatabase wraps the fake mongo.Database.
 type testDatabase struct {
 	data TestDbData
 }
