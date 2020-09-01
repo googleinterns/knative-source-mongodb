@@ -60,5 +60,4 @@ The MongoDb Event Source adds support of MongoDB resources to Knative Eventing.
           apiVersion: serving.knative.dev/v1
           kind: Service
           name: event-display
-          namespace: mongodb
    ```
